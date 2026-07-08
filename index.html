@@ -6,13 +6,14 @@
 <title>Carrybee OPS Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--primary:#6366f1;--primary-dark:#4f46e5;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--info:#3b82f6;--bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--text:#1e293b;--text-sec:#64748b;--text-hint:#94a3b8;--shadow:0 1px 3px rgba(0,0,0,.04),0 4px 20px rgba(0,0,0,.06)}
+:root{--primary:#ffc107;--primary-dark:#f5a623;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--info:#3b82f6;--bg:#f8f9fa;--card:#fff;--border:#e2e8f0;--text:#1e293b;--text-sec:#64748b;--text-hint:#94a3b8;--shadow:0 1px 3px rgba(0,0,0,.04),0 4px 20px rgba(0,0,0,.06);--carrybee-dark:#2d2d2d;--carrybee-yellow:#ffc107}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.header{background:linear-gradient(135deg,#1e293b 0%,#334155 100%);color:#fff;padding:20px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.header{background:linear-gradient(135deg,var(--carrybee-dark) 0%,#3d3d3d 100%);color:#fff;padding:20px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(0,0,0,.15)}
 .header-left{display:flex;align-items:center;gap:16px}
-.header-icon{width:44px;height:44px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:12px;display:flex;align-items:center;justify-content:center}
+.header-icon{width:44px;height:44px;background:var(--carrybee-yellow);border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .header-icon svg{width:22px;height:22px;stroke:#fff;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.header-icon img{width:100%;height:100%;object-fit:contain;padding:4px}
 .header h1{font-size:20px;font-weight:800;letter-spacing:-.3px}
 .header p{font-size:12px;color:rgba(255,255,255,.6);margin-top:2px}
 .header-stats{display:flex;gap:24px}
@@ -47,9 +48,9 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .filter-group{display:flex;align-items:center;gap:8px}
 .filter-label{font-size:12px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:.5px}
 .filter-input,.filter-select{padding:8px 14px;font-size:13px;border:1.5px solid var(--border);border-radius:8px;background:#fafbfc;color:var(--text);outline:none;font-family:inherit;min-width:140px}
-.filter-input:focus,.filter-select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.08)}
+.filter-input:focus,.filter-select:focus{border-color:var(--carrybee-yellow);box-shadow:0 0 0 3px rgba(255,193,7,.15)}
 .btn{padding:8px 18px;font-size:13px;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
-.btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff}
+.btn-primary{background:linear-gradient(135deg,var(--carrybee-yellow),var(--primary-dark));color:#2d2d2d;font-weight:700}
 .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,.3)}
 .btn-success{background:linear-gradient(135deg,var(--success),#059669);color:#fff}
 .table-wrap{padding:24px 32px;overflow-x:auto}
@@ -82,7 +83,7 @@ tr:last-child td{border-bottom:none}
 .modal-field{margin-bottom:16px}
 .modal-field label{display:block;font-size:12px;font-weight:600;color:var(--text-sec);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
 .modal-field input,.modal-field select,.modal-field textarea{width:100%;padding:10px 14px;font-size:14px;border:1.5px solid var(--border);border-radius:8px;background:#fafbfc;outline:none;font-family:inherit}
-.modal-field input:focus,.modal-field select:focus,.modal-field textarea:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(99,102,241,.08)}
+.modal-field input:focus,.modal-field select:focus,.modal-field textarea:focus{border-color:var(--carrybee-yellow);background:#fff;box-shadow:0 0 0 3px rgba(255,193,7,.15)}
 .modal-field textarea{min-height:100px;resize:vertical}
 .modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
 .btn-cancel{background:#f1f5f9;color:var(--text-sec)}
@@ -101,7 +102,7 @@ tr:last-child td{border-bottom:none}
 .detail-label{font-size:10px;font-weight:700;color:var(--text-hint);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
 .detail-value{font-size:13px;font-weight:600;color:var(--text)}
 .detail-value.details{font-size:13px;line-height:1.6;color:var(--text-sec);grid-column:1/-1}
-.toggle-details{background:none;border:none;color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px}
+.toggle-details{background:none;border:none;color:var(--carrybee-dark);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px}
 .toggle-details:hover{text-decoration:underline}
 .chart-container{background:var(--card);border-radius:12px;padding:20px;box-shadow:var(--shadow);margin-bottom:20px}
 .chart-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px}
@@ -121,7 +122,7 @@ tr:last-child td{border-bottom:none}
 <body>
 <div class="header">
 <div class="header-left">
-<div class="header-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+<div class="header-icon"><img src="/logo.png" alt="Carrybee" onerror="this.style.display='none';this.parentElement.innerHTML='<svg viewBox=\'0 0 24 24\'><path d=\'M12 2L2 7l10 5 10-5-10-5z\'/><path d=\'M2 17l10 5 10-5\'/><path d=\'M2 12l10 5 10-5\'/></svg>'"></div>
 <div><h1>OPS Response Dashboard</h1><p>Manage and respond to escalated issues</p></div>
 </div>
 <div class="header-stats">
@@ -217,11 +218,7 @@ function escapeHtml(str) {
 
 function getResponseTime(createdAt) {
   var created = new Date(createdAt);
-  // Get current time in Bangladesh (UTC+6)
   var now = new Date();
-  var bstOffset = 6 * 60 * 60 * 1000; // 6 hours in ms
-  var utc = now.getTime() + (now.getTimezoneOffset() * 60 * 1000);
-  var now = new Date(utc + bstOffset);
   var diffMs = now - created;
   var diffMins = Math.floor(diffMs / 60000);
   var diffHours = Math.floor(diffMins / 60);
@@ -236,7 +233,6 @@ function getResponseTime(createdAt) {
 function formatDate(dateStr) {
   var d = new Date(dateStr);
   return d.toLocaleString('en-GB', { 
-    timeZone: 'Asia/Dhaka',
     day: '2-digit', 
     month: 'short', 
     year: 'numeric', 
