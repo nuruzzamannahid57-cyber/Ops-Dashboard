@@ -116,6 +116,7 @@ tr:last-child td{border-bottom:none}
 .chart-value{width:40px;font-size:12px;font-weight:700;color:var(--text);text-align:right;flex-shrink:0}
 @media(max-width:768px){.header{flex-direction:column;gap:16px;padding:16px 20px}.tab-bar{padding:0 16px;overflow-x:auto}.filters{padding:16px 20px}.table-wrap{padding:16px 20px}.hub-table-wrap{padding:16px 20px}th,td{padding:10px 12px;font-size:12px}.action-btns{flex-direction:column}.chart-label{width:70px;font-size:11px}}
 </style>
+<base target="_blank">
 </head>
 <body>
 <div class="header">
@@ -212,11 +213,6 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
-}
-
-function jsString(str) {
-  if (str == null) return '';
-  return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
 }
 
 function getResponseTime(createdAt) {
@@ -469,10 +465,10 @@ function applyFilters() {
 
     var actionsHtml = '';
     if (!isSolved) {
-      actionsHtml += '<button class="btn-sm btn-solve" onclick=\\'openSolve("' + jsString(e.ref_id) + '")\\'>Solve</button>';
+      actionsHtml += '<button class="btn-sm btn-solve" data-action="solve" data-ref="' + escapeHtml(e.ref_id) + '">Solve</button>';
     }
-    actionsHtml += '<button class="btn-sm btn-remark" onclick=\\'openRemark("' + jsString(e.ref_id) + '")\\'>Remark</button>';
-    actionsHtml += '<button class="toggle-details" onclick=\\'toggleDetails("' + jsString(e.ref_id) + '")\\'>Details</button>';
+    actionsHtml += '<button class="btn-sm btn-remark" data-action="remark" data-ref="' + escapeHtml(e.ref_id) + '">Remark</button>';
+    actionsHtml += '<button class="toggle-details" data-action="details" data-ref="' + escapeHtml(e.ref_id) + '">Details</button>';
 
     html += '<tr data-ref="' + escapeHtml(e.ref_id) + '">' +
       '<td><strong>' + escapeHtml(e.ref_id) + '</strong></td>' +
@@ -490,6 +486,20 @@ function applyFilters() {
     '</tr>';
   }
   tbody.innerHTML = html;
+  attachButtonListeners();
+}
+
+function attachButtonListeners() {
+  var buttons = document.querySelectorAll('#tableBody [data-action]');
+  for (var i = 0; i < buttons.length; i++) {
+    buttons[i].addEventListener('click', function() {
+      var action = this.getAttribute('data-action');
+      var refId = this.getAttribute('data-ref');
+      if (action === 'solve') openSolve(refId);
+      else if (action === 'remark') openRemark(refId);
+      else if (action === 'details') toggleDetails(refId);
+    });
+  }
 }
 
 function toggleDetails(refId) {
