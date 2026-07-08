@@ -113,7 +113,27 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .stat{text-align:center}
 .stat-value{font-size:22px;font-weight:800;color:#fff}
 .stat-label{font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px}
-.filters{padding:20px 32px;background:var(--card);border-bottom:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+
+/* Hub Analytics Bar */
+.analytics-bar{background:var(--card);border-bottom:1px solid var(--border);padding:16px 32px}
+.analytics-bar h2{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.analytics-bar h2::before{content:"";display:inline-block;width:8px;height:8px;background:var(--success);border-radius:50%}
+.hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.hub-card{background:linear-gradient(135deg,#f8fafc,#fff);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;transition:all .2s}
+.hub-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.06);border-color:var(--primary)}
+.hub-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0}
+.hub-icon.perfect{background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#065f46}
+.hub-icon.good{background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e40af}
+.hub-icon.warning{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e}
+.hub-icon.danger{background:linear-gradient(135deg,#fee2e2,#fecaca);color:#991b1b}
+.hub-info{flex:1;min-width:0}
+.hub-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hub-meta{font-size:11px;color:var(--text-sec);margin-top:2px}
+.hub-score{font-size:16px;font-weight:800;color:var(--success)}
+.hub-score.warning{color:var(--warning)}
+.hub-score.danger{color:var(--danger)}
+
+.filters{padding:16px 32px;background:var(--card);border-bottom:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 .filter-group{display:flex;align-items:center;gap:8px}
 .filter-label{font-size:12px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:.5px}
 .filter-input,.filter-select{padding:8px 14px;font-size:13px;border:1.5px solid var(--border);border-radius:8px;background:#fafbfc;color:var(--text);outline:none;font-family:inherit;min-width:140px}
@@ -173,7 +193,7 @@ tr:last-child td{border-bottom:none}
 .detail-value.details{font-size:13px;line-height:1.6;color:var(--text-sec);grid-column:1/-1}
 .toggle-details{background:none;border:none;color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px}
 .toggle-details:hover{text-decoration:underline}
-@media(max-width:768px){.header{flex-direction:column;gap:16px;padding:16px 20px}.filters{padding:16px 20px}.table-wrap{padding:16px 20px}th,td{padding:10px 12px;font-size:12px}.action-btns{flex-direction:column}}
+@media(max-width:768px){.header{flex-direction:column;gap:16px;padding:16px 20px}.analytics-bar{padding:16px 20px}.filters{padding:16px 20px}.table-wrap{padding:16px 20px}th,td{padding:10px 12px;font-size:12px}.action-btns{flex-direction:column}.hub-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
 </style>
 </head>
 <body>
@@ -189,6 +209,15 @@ tr:last-child td{border-bottom:none}
 <div class="stat"><div class="stat-value" id="statAvgTime">-</div><div class="stat-label">Avg Response</div></div>
 </div>
 </div>
+
+<!-- Hub Analytics Bar -->
+<div class="analytics-bar">
+<h2>Hub Performance Analytics</h2>
+<div class="hub-grid" id="hubAnalytics">
+<div class="loading" style="padding:20px">Loading hub analytics...</div>
+</div>
+</div>
+
 <div class="filters">
 <div class="filter-group"><span class="filter-label">Status</span><select class="filter-select" id="filterStatus" onchange="loadEscalations()"><option value="">All</option><option value="Pending" selected>Pending</option><option value="In Progress">In Progress</option><option value="Escalated">Escalated</option><option value="Resolved">Resolved</option><option value="Closed">Closed</option></select></div>
 <div class="filter-group"><span class="filter-label">Hub</span><select class="filter-select" id="filterHub" onchange="loadEscalations()"><option value="">All Hubs</option><option>Uttara</option><option>Diabari</option><option>Khilkhet</option><option>Mohakhali</option><option>Badda</option><option>Pallabi</option><option>60 Feet</option><option>Mohammadpur</option><option>Kolabagan</option><option>Lalbagh</option><option>Kamrangirchar</option><option>Jatrabari</option><option>Khilgaon</option><option>Dhonia</option><option>Demra</option></select></div>
@@ -228,18 +257,265 @@ tr:last-child td{border-bottom:none}
 </div>
 <script>
 let allEscalations=[],currentRefId=null;
-function getResponseTime(createdAt){const created=new Date(createdAt),now=new Date(),diffMs=now-created,diffMins=Math.floor(diffMs/60000),diffHours=Math.floor(diffMins/60),diffDays=Math.floor(diffHours/24);let text,cls='';if(diffDays>0){text=diffDays+'d '+(diffHours%24)+'h';cls='overdue'}else if(diffHours>0){text=diffHours+'h '+(diffMins%60)+'m';cls=diffHours>4?'overdue':diffHours>2?'urgent':''}else{text=diffMins+'m';cls=diffMins>30?'urgent':''}return{text,cls,diffMins}}
-function formatDate(dateStr){const d=new Date(dateStr);return d.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
-function getStatusBadge(status){const s=(status||'Pending').toLowerCase();if(s.includes('solved')||s.includes('resolved')||s.includes('closed'))return'<span class="badge badge-solved">● Solved</span>';if(s.includes('escalat'))return'<span class="badge badge-escalated">● Escalated</span>';if(s.includes('progress'))return'<span class="badge badge-inprogress">● In Progress</span>';return'<span class="badge badge-pending">● Pending</span>'}
-async function loadEscalations(){document.getElementById('loading').style.display='block';document.getElementById('empty').style.display='none';document.getElementById('escalationsTable').style.display='none';try{const res=await fetch('/api/escalations');const data=await res.json();if(!data.success)throw new Error(data.error);allEscalations=data.data||[];applyFilters()}catch(e){document.getElementById('loading').textContent='Error: '+e.message}}
-function applyFilters(){const statusFilter=document.getElementById('filterStatus').value,hubFilter=document.getElementById('filterHub').value,catFilter=document.getElementById('filterCategory').value,searchFilter=document.getElementById('filterSearch').value.toLowerCase();let filtered=allEscalations.filter(e=>{if(statusFilter&&e.issue_status!==statusFilter)return false;if(hubFilter&&e.concern_hub!==hubFilter)return false;if(catFilter&&e.issue_category!==catFilter)return false;if(searchFilter){const searchStr=(e.ref_id+' '+e.merchant_id+' '+e.kam_name+' '+e.issue_category).toLowerCase();if(!searchStr.includes(searchFilter))return false}return true});const total=allEscalations.length,pending=allEscalations.filter(e=>(e.issue_status||'Pending').toLowerCase()==='pending').length,solved=allEscalations.filter(e=>{const s=(e.issue_status||'').toLowerCase();return s==='solved'||s==='resolved'||s==='closed'}).length;const solvedItems=allEscalations.filter(e=>{const s=(e.issue_status||'').toLowerCase();return s==='solved'||s==='resolved'||s==='closed'});let avgTime='-';if(solvedItems.length>0){const totalMins=solvedItems.reduce((sum,e)=>sum+(e.response_time_mins||getResponseTime(e.created_at).diffMins),0);const avgMins=Math.round(totalMins/solvedItems.length);if(avgMins>1440)avgTime=Math.round(avgMins/1440)+'d';else if(avgMins>60)avgTime=Math.round(avgMins/60)+'h';else avgTime=avgMins+'m'}document.getElementById('statTotal').textContent=total;document.getElementById('statPending').textContent=pending;document.getElementById('statSolved').textContent=solved;document.getElementById('statAvgTime').textContent=avgTime;document.getElementById('loading').style.display='none';if(filtered.length===0){document.getElementById('empty').style.display='block';document.getElementById('escalationsTable').style.display='none';return}document.getElementById('empty').style.display='none';document.getElementById('escalationsTable').style.display='table';const tbody=document.getElementById('tableBody');tbody.innerHTML=filtered.map(e=>{const rt=getResponseTime(e.created_at);const isSolved=(e.issue_status||'').toLowerCase().includes('solved')||(e.issue_status||'').toLowerCase().includes('resolved')||(e.issue_status||'').toLowerCase().includes('closed');return'<tr data-ref="'+e.ref_id+'"><td><strong>'+e.ref_id+'</strong></td><td>'+e.merchant_id+'</td><td>'+(e.kam_name||'-')+'</td><td>'+e.concern_hub+'</td><td><span style="font-size:11px;background:#f1f5f9;padding:3px 10px;border-radius:20px">'+e.issue_category+'</span></td><td>'+getStatusBadge(e.issue_status)+'</td><td><span class="response-time '+rt.cls+'">'+rt.text+'</span></td><td style="font-size:12px;color:var(--text-hint)">'+formatDate(e.created_at)+'</td><td><div class="action-btns">'+(!isSolved?'<button class="btn-sm btn-solve" onclick="openSolve(\''+e.ref_id+'\')">Solve</button>':'')+'<button class="btn-sm btn-remark" onclick="openRemark(\''+e.ref_id+'\')">Remark</button><button class="toggle-details" onclick="toggleDetails(\''+e.ref_id+'\')">Details</button></div></td></tr><tr class="details-row" id="details-'+e.ref_id+'"><td colspan="9"><div class="details-cell"><div class="details-grid"><div class="detail-item"><div class="detail-label">Channel</div><div class="detail-value">'+(e.channel||'N/A')+'</div></div><div class="detail-item"><div class="detail-label">Zone</div><div class="detail-value">'+(e.zone||'N/A')+'</div></div><div class="detail-item"><div class="detail-label">Sub Category</div><div class="detail-value">'+e.issue_sub_category+'</div></div><div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">'+(e.issue_status||'Pending')+'</div></div><div class="detail-item details"><div class="detail-label">Issue Details</div><div class="detail-value details">'+e.issue_details+'</div></div>'+(e.ops_remarks?'<div class="detail-item details"><div class="detail-label">OPS Remarks</div><div class="detail-value details" style="color:var(--primary)">'+e.ops_remarks+'</div></div>':'')+(e.resolution_type?'<div class="detail-item"><div class="detail-label">Resolution Type</div><div class="detail-value" style="color:var(--success)">'+e.resolution_type+'</div></div>':'')+(e.solved_at?'<div class="detail-item"><div class="detail-label">Solved At</div><div class="detail-value">'+formatDate(e.solved_at)+'</div></div>':'')+(e.response_time_mins?'<div class="detail-item"><div class="detail-label">Response Time</div><div class="detail-value">'+Math.floor(e.response_time_mins/60)+'h '+(e.response_time_mins%60)+'m</div></div>':'')+'</div></div></td></tr>'}).join('')}
-function toggleDetails(refId){document.getElementById('details-'+refId).classList.toggle('active')}
-function openSolve(refId){currentRefId=refId;document.getElementById('solveRefId').value=refId;document.getElementById('solveRemarks').value='';document.getElementById('solveResolutionType').value='';document.getElementById('solveModal').classList.add('active')}
-function openRemark(refId){currentRefId=refId;document.getElementById('remarkRefId').value=refId;document.getElementById('remarkText').value='';document.getElementById('remarkStatus').value='';document.getElementById('remarkModal').classList.add('active')}
-function closeModal(id){document.getElementById(id).classList.remove('active');currentRefId=null}
-async function submitSolve(){const remarks=document.getElementById('solveRemarks').value.trim();if(!remarks){alert('Please enter resolution remarks');return}const btn=document.querySelector('#solveModal .btn-success');btn.disabled=true;btn.textContent='Saving...';try{const res=await fetch('/api/escalations/'+currentRefId+'/solve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remarks,resolutionType:document.getElementById('solveResolutionType').value})});const data=await res.json();if(data.success){closeModal('solveModal');loadEscalations();alert('Marked as solved!')}else{throw new Error(data.error)}}catch(e){alert('Error: '+e.message)}finally{btn.disabled=false;btn.textContent='Mark Solved'}}
-async function submitRemark(){const remark=document.getElementById('remarkText').value.trim();if(!remark){alert('Please enter a remark');return}const btn=document.querySelector('#remarkModal .btn-primary');btn.disabled=true;btn.textContent='Saving...';try{const res=await fetch('/api/escalations/'+currentRefId+'/remark',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remark,newStatus:document.getElementById('remarkStatus').value})});const data=await res.json();if(data.success){closeModal('remarkModal');loadEscalations();alert('Remark added!')}else{throw new Error(data.error)}}catch(e){alert('Error: '+e.message)}finally{btn.disabled=false;btn.textContent='Add Remark'}}
-document.querySelectorAll('.modal-overlay').forEach(overlay=>{overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('active')})})
+
+function escapeHtml(str){
+  if(str==null) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
+function getResponseTime(createdAt){
+  const created=new Date(createdAt),now=new Date(),diffMs=now-created,diffMins=Math.floor(diffMs/60000),diffHours=Math.floor(diffMins/60),diffDays=Math.floor(diffHours/24);
+  let text,cls='';
+  if(diffDays>0){text=diffDays+'d '+(diffHours%24)+'h';cls='overdue'}
+  else if(diffHours>0){text=diffHours+'h '+(diffMins%60)+'m';cls=diffHours>4?'overdue':diffHours>2?'urgent':''}
+  else{text=diffMins+'m';cls=diffMins>30?'urgent':''}
+  return{text,cls,diffMins}
+}
+
+function formatDate(dateStr){
+  const d=new Date(dateStr);
+  return d.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+}
+
+function getStatusBadge(status){
+  const s=(status||'Pending').toLowerCase();
+  if(s.includes('solved')||s.includes('resolved')||s.includes('closed'))return'<span class="badge badge-solved">● Solved</span>';
+  if(s.includes('escalat'))return'<span class="badge badge-escalated">● Escalated</span>';
+  if(s.includes('progress'))return'<span class="badge badge-inprogress">● In Progress</span>';
+  return'<span class="badge badge-pending">● Pending</span>'
+}
+
+function renderHubAnalytics(data){
+  const hubStats={};
+  data.forEach(e=>{
+    const hub=e.concern_hub||'Unknown';
+    if(!hubStats[hub]) hubStats[hub]={total:0,solved:0,totalResponse:0,solvedCount:0};
+    hubStats[hub].total++;
+    const s=(e.issue_status||'').toLowerCase();
+    if(s==='solved'||s==='resolved'||s==='closed'){
+      hubStats[hub].solved++;
+      if(e.response_time_mins){
+        hubStats[hub].totalResponse+=e.response_time_mins;
+        hubStats[hub].solvedCount++;
+      }
+    }
+  });
+
+  const hubs=Object.entries(hubStats).map(([name,stats])=>{
+    const solveRate=stats.total>0?Math.round((stats.solved/stats.total)*100):0;
+    const avgResponse=stats.solvedCount>0?Math.round(stats.totalResponse/stats.solvedCount):0;
+    let score=solveRate;
+    if(avgResponse>0){
+      const responseScore=avgResponse<60?30:avgResponse<120?20:avgResponse<240?10:0;
+      score=Math.round((solveRate*0.7)+(responseScore*2.33));
+    }
+    return{name,solveRate,avgResponse,total:stats.total,score};
+  }).sort((a,b)=>b.score-a.score);
+
+  const container=document.getElementById('hubAnalytics');
+  if(hubs.length===0){
+    container.innerHTML='<div class="empty" style="padding:20px"><p>No hub data available</p></div>';
+    return;
+  }
+
+  container.innerHTML=hubs.map(h=>{
+    let iconClass='perfect',iconText='A',scoreClass='';
+    if(h.score>=85){iconClass='perfect';iconText='A';scoreClass=''}
+    else if(h.score>=60){iconClass='good';iconText='B';scoreClass='warning'}
+    else if(h.score>=40){iconClass='warning';iconText='C';scoreClass='warning'}
+    else{iconClass='danger';iconText='D';scoreClass='danger'}
+
+    let avgText='-';
+    if(h.avgResponse>0){
+      if(h.avgResponse>1440) avgText=Math.round(h.avgResponse/1440)+'d';
+      else if(h.avgResponse>60) avgText=Math.round(h.avgResponse/60)+'h';
+      else avgText=h.avgResponse+'m';
+    }
+
+    return '<div class="hub-card">'+
+      '<div class="hub-icon '+iconClass+'">'+iconText+'</div>'+
+      '<div class="hub-info">'+
+        '<div class="hub-name">'+escapeHtml(h.name)+'</div>'+
+        '<div class="hub-meta">'+h.solveRate+'% solved · Avg '+avgText+'</div>'+
+      '</div>'+
+      '<div class="hub-score '+scoreClass+'">'+h.score+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+async function loadEscalations(){
+  document.getElementById('loading').style.display='block';
+  document.getElementById('empty').style.display='none';
+  document.getElementById('escalationsTable').style.display='none';
+  try{
+    const res=await fetch('/api/escalations');
+    const data=await res.json();
+    if(!data.success) throw new Error(data.error);
+    allEscalations=data.data||[];
+    renderHubAnalytics(allEscalations);
+    applyFilters();
+  }catch(e){
+    document.getElementById('loading').textContent='Error: '+e.message;
+    document.getElementById('hubAnalytics').innerHTML='<div class="empty" style="padding:20px"><p>Failed to load analytics</p></div>';
+  }
+}
+
+function applyFilters(){
+  const statusFilter=document.getElementById('filterStatus').value,
+    hubFilter=document.getElementById('filterHub').value,
+    catFilter=document.getElementById('filterCategory').value,
+    searchFilter=document.getElementById('filterSearch').value.toLowerCase();
+
+  let filtered=allEscalations.filter(e=>{
+    if(statusFilter&&e.issue_status!==statusFilter) return false;
+    if(hubFilter&&e.concern_hub!==hubFilter) return false;
+    if(catFilter&&e.issue_category!==catFilter) return false;
+    if(searchFilter){
+      const searchStr=(e.ref_id+' '+e.merchant_id+' '+(e.kam_name||'')+' '+e.issue_category).toLowerCase();
+      if(!searchStr.includes(searchFilter)) return false;
+    }
+    return true;
+  });
+
+  const total=allEscalations.length,
+    pending=allEscalations.filter(e=>(e.issue_status||'Pending').toLowerCase()==='pending').length,
+    solved=allEscalations.filter(e=>{const s=(e.issue_status||'').toLowerCase();return s==='solved'||s==='resolved'||s==='closed'}).length;
+  const solvedItems=allEscalations.filter(e=>{const s=(e.issue_status||'').toLowerCase();return s==='solved'||s==='resolved'||s==='closed'});
+
+  let avgTime='-';
+  if(solvedItems.length>0){
+    const totalMins=solvedItems.reduce((sum,e)=>sum+(e.response_time_mins||getResponseTime(e.created_at).diffMins),0);
+    const avgMins=Math.round(totalMins/solvedItems.length);
+    if(avgMins>1440) avgTime=Math.round(avgMins/1440)+'d';
+    else if(avgMins>60) avgTime=Math.round(avgMins/60)+'h';
+    else avgTime=avgMins+'m';
+  }
+
+  document.getElementById('statTotal').textContent=total;
+  document.getElementById('statPending').textContent=pending;
+  document.getElementById('statSolved').textContent=solved;
+  document.getElementById('statAvgTime').textContent=avgTime;
+  document.getElementById('loading').style.display='none';
+
+  if(filtered.length===0){
+    document.getElementById('empty').style.display='block';
+    document.getElementById('escalationsTable').style.display='none';
+    return;
+  }
+
+  document.getElementById('empty').style.display='none';
+  document.getElementById('escalationsTable').style.display='table';
+  const tbody=document.getElementById('tableBody');
+
+  tbody.innerHTML=filtered.map(e=>{
+    const rt=getResponseTime(e.created_at);
+    const isSolved=(e.issue_status||'').toLowerCase().includes('solved')||(e.issue_status||'').toLowerCase().includes('resolved')||(e.issue_status||'').toLowerCase().includes('closed');
+
+    let detailsHtml='';
+    detailsHtml+='<div class="detail-item"><div class="detail-label">Channel</div><div class="detail-value">'+escapeHtml(e.channel||'N/A')+'</div></div>';
+    detailsHtml+='<div class="detail-item"><div class="detail-label">Zone</div><div class="detail-value">'+escapeHtml(e.zone||'N/A')+'</div></div>';
+    detailsHtml+='<div class="detail-item"><div class="detail-label">Sub Category</div><div class="detail-value">'+escapeHtml(e.issue_sub_category)+'</div></div>';
+    detailsHtml+='<div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">'+escapeHtml(e.issue_status||'Pending')+'</div></div>';
+    detailsHtml+='<div class="detail-item details"><div class="detail-label">Issue Details</div><div class="detail-value details">'+escapeHtml(e.issue_details)+'</div></div>';
+    if(e.ops_remarks){
+      detailsHtml+='<div class="detail-item details"><div class="detail-label">OPS Remarks</div><div class="detail-value details" style="color:var(--primary)">'+escapeHtml(e.ops_remarks)+'</div></div>';
+    }
+    if(e.resolution_type){
+      detailsHtml+='<div class="detail-item"><div class="detail-label">Resolution Type</div><div class="detail-value" style="color:var(--success)">'+escapeHtml(e.resolution_type)+'</div></div>';
+    }
+    if(e.solved_at){
+      detailsHtml+='<div class="detail-item"><div class="detail-label">Solved At</div><div class="detail-value">'+formatDate(e.solved_at)+'</div></div>';
+    }
+    if(e.response_time_mins){
+      detailsHtml+='<div class="detail-item"><div class="detail-label">Response Time</div><div class="detail-value">'+Math.floor(e.response_time_mins/60)+'h '+(e.response_time_mins%60)+'m</div></div>';
+    }
+
+    let actionsHtml='';
+    if(!isSolved){
+      actionsHtml+='<button class="btn-sm btn-solve" onclick="openSolve('+JSON.stringify(e.ref_id)+')">Solve</button>';
+    }
+    actionsHtml+='<button class="btn-sm btn-remark" onclick="openRemark('+JSON.stringify(e.ref_id)+')">Remark</button>';
+    actionsHtml+='<button class="toggle-details" onclick="toggleDetails('+JSON.stringify(e.ref_id)+')">Details</button>';
+
+    return '<tr data-ref="'+escapeHtml(e.ref_id)+'">'+
+      '<td><strong>'+escapeHtml(e.ref_id)+'</strong></td>'+
+      '<td>'+escapeHtml(e.merchant_id)+'</td>'+
+      '<td>'+escapeHtml(e.kam_name||'-')+'</td>'+
+      '<td>'+escapeHtml(e.concern_hub)+'</td>'+
+      '<td><span style="font-size:11px;background:#f1f5f9;padding:3px 10px;border-radius:20px">'+escapeHtml(e.issue_category)+'</span></td>'+
+      '<td>'+getStatusBadge(e.issue_status)+'</td>'+
+      '<td><span class="response-time '+rt.cls+'">'+rt.text+'</span></td>'+
+      '<td style="font-size:12px;color:var(--text-hint)">'+formatDate(e.created_at)+'</td>'+
+      '<td><div class="action-btns">'+actionsHtml+'</div></td>'+
+    '</tr>'+
+    '<tr class="details-row" id="details-'+escapeHtml(e.ref_id)+'">'+
+      '<td colspan="9"><div class="details-cell"><div class="details-grid">'+detailsHtml+'</div></div></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function toggleDetails(refId){
+  document.getElementById('details-'+refId).classList.toggle('active')
+}
+
+function openSolve(refId){
+  currentRefId=refId;
+  document.getElementById('solveRefId').value=refId;
+  document.getElementById('solveRemarks').value='';
+  document.getElementById('solveResolutionType').value='';
+  document.getElementById('solveModal').classList.add('active')
+}
+
+function openRemark(refId){
+  currentRefId=refId;
+  document.getElementById('remarkRefId').value=refId;
+  document.getElementById('remarkText').value='';
+  document.getElementById('remarkStatus').value='';
+  document.getElementById('remarkModal').classList.add('active')
+}
+
+function closeModal(id){
+  document.getElementById(id).classList.remove('active');
+  currentRefId=null
+}
+
+async function submitSolve(){
+  const remarks=document.getElementById('solveRemarks').value.trim();
+  if(!remarks){alert('Please enter resolution remarks');return}
+  const btn=document.querySelector('#solveModal .btn-success');
+  btn.disabled=true;btn.textContent='Saving...';
+  try{
+    const res=await fetch('/api/escalations/'+encodeURIComponent(currentRefId)+'/solve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remarks,resolutionType:document.getElementById('solveResolutionType').value})});
+    const data=await res.json();
+    if(data.success){closeModal('solveModal');loadEscalations();alert('Marked as solved!')}
+    else{throw new Error(data.error)}
+  }catch(e){alert('Error: '+e.message)}
+  finally{btn.disabled=false;btn.textContent='Mark Solved'}
+}
+
+async function submitRemark(){
+  const remark=document.getElementById('remarkText').value.trim();
+  if(!remark){alert('Please enter a remark');return}
+  const btn=document.querySelector('#remarkModal .btn-primary');
+  btn.disabled=true;btn.textContent='Saving...';
+  try{
+    const res=await fetch('/api/escalations/'+encodeURIComponent(currentRefId)+'/remark',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remark,newStatus:document.getElementById('remarkStatus').value})});
+    const data=await res.json();
+    if(data.success){closeModal('remarkModal');loadEscalations();alert('Remark added!')}
+    else{throw new Error(data.error)}
+  }catch(e){alert('Error: '+e.message)}
+  finally{btn.disabled=false;btn.textContent='Add Remark'}
+}
+
+document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('active')})
+})
+
 loadEscalations()
 setInterval(loadEscalations,30000)
 </script>
