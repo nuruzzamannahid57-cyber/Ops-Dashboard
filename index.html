@@ -513,19 +513,23 @@ function computeHubStats(data) {
   for (var i = 0; i < ALL_HUBS.length; i++) {
     var name = ALL_HUBS[i];
     var stats = hubStats[name];
-    var solveRate = stats.total > 0 ? Math.round((stats.solved / stats.total) * 100) : 100;
+    // Only include hubs that have actual data
+    if (stats.total === 0) continue;
+    var solveRate = Math.round((stats.solved / stats.total) * 100);
     var avgResponse = stats.solvedCount > 0 ? Math.round(stats.totalResponse / stats.solvedCount) : 0;
     var score = solveRate;
     if (avgResponse > 0) {
       var responseScore = avgResponse < 60 ? 30 : avgResponse < 120 ? 20 : avgResponse < 240 ? 10 : 0;
       score = Math.round((solveRate * 0.7) + (responseScore * 2.33));
-    } else if (stats.total === 0) {
-      score = 100; // Perfect score for hubs with no issues
     }
     if (score > 100) score = 100;
     hubs.push({ name: name, solveRate: solveRate, avgResponse: avgResponse, total: stats.total, solved: stats.solved, pending: stats.pending, score: score });
   }
-  hubs.sort(function(a, b) { return b.score - a.score; });
+  // Sort by score descending, then by total issues descending
+  hubs.sort(function(a, b) {
+    if (b.score !== a.score) return b.score - a.score;
+    return b.total - a.total;
+  });
   return hubs;
 }
 
@@ -535,8 +539,8 @@ function renderHubPerformanceTab() {
   var chartDiv = document.getElementById('hubChart');
 
   if (hubs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty" style="padding:40px">No hub data available</td></tr>';
-    chartDiv.innerHTML = '<p style="text-align:center;color:var(--text-hint)">No data</p>';
+    tbody.innerHTML = '<tr><td colspan="8" class="empty" style="padding:40px">No hub data available. Escalations will appear here once data is loaded.</td></tr>';
+    chartDiv.innerHTML = '<p style="text-align:center;color:var(--text-hint);padding:40px">No hub performance data yet. Data will appear once escalations are loaded.</p>';
     return;
   }
 
