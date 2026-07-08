@@ -217,7 +217,11 @@ function escapeHtml(str) {
 
 function getResponseTime(createdAt) {
   var created = new Date(createdAt);
+  // Get current time in Bangladesh (UTC+6)
   var now = new Date();
+  var bstOffset = 6 * 60 * 60 * 1000; // 6 hours in ms
+  var utc = now.getTime() + (now.getTimezoneOffset() * 60 * 1000);
+  var now = new Date(utc + bstOffset);
   var diffMs = now - created;
   var diffMins = Math.floor(diffMs / 60000);
   var diffHours = Math.floor(diffMins / 60);
@@ -231,7 +235,15 @@ function getResponseTime(createdAt) {
 
 function formatDate(dateStr) {
   var d = new Date(dateStr);
-  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString('en-GB', { 
+    timeZone: 'Asia/Dhaka',
+    day: '2-digit', 
+    month: 'short', 
+    year: 'numeric', 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: true
+  }) + ' BST';
 }
 
 function formatDuration(mins) {
