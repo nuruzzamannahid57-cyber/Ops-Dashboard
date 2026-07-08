@@ -22,7 +22,6 @@ function initDb() {
   try { return createClient({ url, authToken }); } catch (e) { console.error("DB init failed:", e.message); return null; }
 }
 
-// Health check
 app.get("/api/health", async (req, res) => {
   try {
     if (!db) return res.json({ status: "error", message: "DB not initialized" });
@@ -31,7 +30,6 @@ app.get("/api/health", async (req, res) => {
   } catch (e) { res.status(503).json({ status: "error", message: e.message }); }
 });
 
-// List all escalations
 app.get("/api/escalations", async (req, res) => {
   try {
     if (!db) return res.status(503).json({ success: false, error: "DB not connected" });
@@ -40,7 +38,6 @@ app.get("/api/escalations", async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// Get single escalation
 app.get("/api/escalations/:refId", async (req, res) => {
   try {
     if (!db) return res.status(503).json({ success: false, error: "DB not connected" });
@@ -50,54 +47,40 @@ app.get("/api/escalations/:refId", async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// Mark as solved
 app.post("/api/escalations/:refId/solve", async (req, res) => {
   try {
     if (!db) return res.status(503).json({ success: false, error: "DB not connected" });
     const { remarks, resolutionType } = req.body;
     if (!remarks) return res.status(400).json({ success: false, error: "Remarks required" });
-
     const existing = await db.execute({ sql: "SELECT created_at FROM escalations WHERE ref_id = ?", args: [req.params.refId] });
     if (existing.rows.length === 0) return res.status(404).json({ success: false, error: "Not found" });
-
     const createdAt = new Date(existing.rows[0].created_at);
     const solvedAt = new Date();
     const responseTimeMins = Math.floor((solvedAt - createdAt) / 60000);
-
     await db.execute({
       sql: "UPDATE escalations SET issue_status = 'Solved', ops_remarks = ?, resolution_type = ?, response_time_mins = ?, solved_at = ?, updated_at = CURRENT_TIMESTAMP WHERE ref_id = ?",
       args: [remarks, resolutionType || null, responseTimeMins, solvedAt.toISOString(), req.params.refId]
     });
-
     res.json({ success: true, message: "Marked as solved", data: { responseTimeMins } });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// Add remark
 app.post("/api/escalations/:refId/remark", async (req, res) => {
   try {
     if (!db) return res.status(503).json({ success: false, error: "DB not connected" });
     const { remark, newStatus } = req.body;
     if (!remark) return res.status(400).json({ success: false, error: "Remark required" });
-
     let sql = "UPDATE escalations SET ops_remarks = ?, updated_at = CURRENT_TIMESTAMP";
     const args = [remark];
     if (newStatus) { sql += ", issue_status = ?"; args.push(newStatus); }
     sql += " WHERE ref_id = ?"; args.push(req.params.refId);
-
     await db.execute({ sql, args });
     res.json({ success: true, message: "Remark added" });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// Serve dashboard
 app.get("/", (req, res) => {
-  const html = buildDashboardHtml();
-  res.send(html);
-});
-
-function buildDashboardHtml() {
-  return `<!DOCTYPE html>
+  res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -118,35 +101,12 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .stat{text-align:center}
 .stat-value{font-size:22px;font-weight:800;color:#fff}
 .stat-label{font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px}
-
-/* Tabs */
 .tab-bar{background:var(--card);border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:4px}
 .tab-btn{padding:14px 24px;font-size:13px;font-weight:600;color:var(--text-sec);background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;transition:all .2s}
 .tab-btn:hover{color:var(--primary)}
 .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
 .tab-content{display:none}
 .tab-content.active{display:block}
-
-/* Hub Analytics */
-.analytics-bar{background:var(--card);border-bottom:1px solid var(--border);padding:20px 32px}
-.analytics-bar h2{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.analytics-bar h2::before{content:"";display:inline-block;width:8px;height:8px;background:var(--success);border-radius:50%}
-.hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-.hub-card{background:linear-gradient(135deg,#f8fafc,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;transition:all .2s}
-.hub-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.06);border-color:var(--primary)}
-.hub-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex-shrink:0}
-.hub-icon.perfect{background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#065f46}
-.hub-icon.good{background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e40af}
-.hub-icon.warning{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e}
-.hub-icon.danger{background:linear-gradient(135deg,#fee2e2,#fecaca);color:#991b1b}
-.hub-info{flex:1;min-width:0}
-.hub-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hub-meta{font-size:11px;color:var(--text-sec);margin-top:2px}
-.hub-score{font-size:18px;font-weight:800;color:var(--success)}
-.hub-score.warning{color:var(--warning)}
-.hub-score.danger{color:var(--danger)}
-
-/* Hub Performance Tab */
 .hub-table-wrap{padding:24px 32px}
 .hub-table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
 .hub-table thead{background:linear-gradient(135deg,#f8fafc,#f1f5f9)}
@@ -154,7 +114,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .hub-table td{padding:14px 16px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border);vertical-align:middle}
 .hub-table tr:hover td{background:#f8fafc}
 .hub-table tr:last-child td{border-bottom:none}
-.progress-bar{height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;width:120px}
+.progress-bar{height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;width:120px;display:inline-block;vertical-align:middle;margin-right:8px}
 .progress-fill{height:100%;border-radius:4px;transition:width .3s}
 .progress-fill.perfect{background:var(--success)}
 .progress-fill.good{background:var(--info)}
@@ -165,7 +125,6 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .rank-badge.silver{background:linear-gradient(135deg,#e2e8f0,#cbd5e1);color:#475569}
 .rank-badge.bronze{background:linear-gradient(135deg,#fed7aa,#fb923c);color:#7c2d12}
 .rank-badge.other{background:#f1f5f9;color:var(--text-sec)}
-
 .filters{padding:16px 32px;background:var(--card);border-bottom:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 .filter-group{display:flex;align-items:center;gap:8px}
 .filter-label{font-size:12px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:.5px}
@@ -237,7 +196,7 @@ tr:last-child td{border-bottom:none}
 .chart-bar.warning{background:var(--warning)}
 .chart-bar.danger{background:var(--danger)}
 .chart-value{width:40px;font-size:12px;font-weight:700;color:var(--text);text-align:right;flex-shrink:0}
-@media(max-width:768px){.header{flex-direction:column;gap:16px;padding:16px 20px}.tab-bar{padding:0 16px;overflow-x:auto}.analytics-bar{padding:16px 20px}.filters{padding:16px 20px}.table-wrap{padding:16px 20px}.hub-table-wrap{padding:16px 20px}th,td{padding:10px 12px;font-size:12px}.action-btns{flex-direction:column}.hub-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.chart-label{width:70px;font-size:11px}}
+@media(max-width:768px){.header{flex-direction:column;gap:16px;padding:16px 20px}.tab-bar{padding:0 16px;overflow-x:auto}.filters{padding:16px 20px}.table-wrap{padding:16px 20px}.hub-table-wrap{padding:16px 20px}th,td{padding:10px 12px;font-size:12px}.action-btns{flex-direction:column}.chart-label{width:70px;font-size:11px}}
 </style>
 </head>
 <body>
@@ -254,23 +213,12 @@ tr:last-child td{border-bottom:none}
 </div>
 </div>
 
-<!-- Tab Navigation -->
 <div class="tab-bar">
 <button class="tab-btn active" onclick="switchTab('escalations')" id="tab-escalations">Escalations</button>
 <button class="tab-btn" onclick="switchTab('hubs')" id="tab-hubs">Hub Performance</button>
 </div>
 
-<!-- Escalations Tab -->
 <div class="tab-content active" id="content-escalations">
-
-<!-- Hub Analytics Bar -->
-<div class="analytics-bar">
-<h2>Hub Performance Snapshot</h2>
-<div class="hub-grid" id="hubAnalytics">
-<div class="loading" style="padding:20px">Loading hub analytics...</div>
-</div>
-</div>
-
 <div class="filters">
 <div class="filter-group"><span class="filter-label">Status</span><select class="filter-select" id="filterStatus" onchange="applyFilters()"><option value="">All</option><option value="Pending" selected>Pending</option><option value="In Progress">In Progress</option><option value="Escalated">Escalated</option><option value="Resolved">Resolved</option><option value="Closed">Closed</option></select></div>
 <div class="filter-group"><span class="filter-label">Hub</span><select class="filter-select" id="filterHub" onchange="applyFilters()"><option value="">All Hubs</option><option>Uttara</option><option>Diabari</option><option>Khilkhet</option><option>Mohakhali</option><option>Badda</option><option>Pallabi</option><option>60 Feet</option><option>Mohammadpur</option><option>Kolabagan</option><option>Lalbagh</option><option>Kamrangirchar</option><option>Jatrabari</option><option>Khilgaon</option><option>Dhonia</option><option>Demra</option></select></div>
@@ -288,7 +236,6 @@ tr:last-child td{border-bottom:none}
 </div>
 </div>
 
-<!-- Hub Performance Tab -->
 <div class="tab-content" id="content-hubs">
 <div class="hub-table-wrap">
 <div class="chart-container">
@@ -336,347 +283,393 @@ tr:last-child td{border-bottom:none}
 </div>
 </div>
 <script>
-let allEscalations=[],currentRefId=null;
+var allEscalations = [];
+var currentRefId = null;
 
-function escapeHtml(str){
-  if(str==null) return '';
+function escapeHtml(str) {
+  if (str == null) return '';
   return String(str)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#039;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
-function getResponseTime(createdAt){
-  const created=new Date(createdAt),now=new Date(),diffMs=now-created,diffMins=Math.floor(diffMs/60000),diffHours=Math.floor(diffMins/60),diffDays=Math.floor(diffHours/24);
-  let text,cls='';
-  if(diffDays>0){text=diffDays+'d '+(diffHours%24)+'h';cls='overdue'}
-  else if(diffHours>0){text=diffHours+'h '+(diffMins%60)+'m';cls=diffHours>4?'overdue':diffHours>2?'urgent':''}
-  else{text=diffMins+'m';cls=diffMins>30?'urgent':''}
-  return{text,cls,diffMins}
+function jsString(str) {
+  if (str == null) return '';
+  return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
 }
 
-function formatDate(dateStr){
-  const d=new Date(dateStr);
-  return d.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+function getResponseTime(createdAt) {
+  var created = new Date(createdAt);
+  var now = new Date();
+  var diffMs = now - created;
+  var diffMins = Math.floor(diffMs / 60000);
+  var diffHours = Math.floor(diffMins / 60);
+  var diffDays = Math.floor(diffHours / 24);
+  var text, cls = '';
+  if (diffDays > 0) { text = diffDays + 'd ' + (diffHours % 24) + 'h'; cls = 'overdue'; }
+  else if (diffHours > 0) { text = diffHours + 'h ' + (diffMins % 60) + 'm'; cls = diffHours > 4 ? 'overdue' : diffHours > 2 ? 'urgent' : ''; }
+  else { text = diffMins + 'm'; cls = diffMins > 30 ? 'urgent' : ''; }
+  return { text: text, cls: cls, diffMins: diffMins };
 }
 
-function formatDuration(mins){
-  if(!mins||mins<=0) return '-';
-  if(mins>1440) return Math.round(mins/1440)+'d';
-  if(mins>60) return Math.round(mins/60)+'h';
-  return mins+'m';
+function formatDate(dateStr) {
+  var d = new Date(dateStr);
+  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function getStatusBadge(status){
-  const s=(status||'Pending').toLowerCase();
-  if(s.indexOf('solved')>=0||s.indexOf('resolved')>=0||s.indexOf('closed')>=0)return'<span class="badge badge-solved">&#9679; Solved</span>';
-  if(s.indexOf('escalat')>=0)return'<span class="badge badge-escalated">&#9679; Escalated</span>';
-  if(s.indexOf('progress')>=0)return'<span class="badge badge-inprogress">&#9679; In Progress</span>';
-  return'<span class="badge badge-pending">&#9679; Pending</span>'
+function formatDuration(mins) {
+  if (!mins || mins <= 0) return '-';
+  if (mins > 1440) return Math.round(mins / 1440) + 'd';
+  if (mins > 60) return Math.round(mins / 60) + 'h';
+  return mins + 'm';
 }
 
-function switchTab(tab){
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
-  document.getElementById('tab-'+tab).classList.add('active');
-  document.getElementById('content-'+tab).classList.add('active');
-  if(tab==='hubs') renderHubPerformanceTab();
+function getStatusBadge(status) {
+  var s = (status || 'Pending').toLowerCase();
+  if (s.indexOf('solved') >= 0 || s.indexOf('resolved') >= 0 || s.indexOf('closed') >= 0) return '<span class="badge badge-solved">&#9679; Solved</span>';
+  if (s.indexOf('escalat') >= 0) return '<span class="badge badge-escalated">&#9679; Escalated</span>';
+  if (s.indexOf('progress') >= 0) return '<span class="badge badge-inprogress">&#9679; In Progress</span>';
+  return '<span class="badge badge-pending">&#9679; Pending</span>';
 }
 
-function computeHubStats(data){
-  const hubStats={};
-  data.forEach(e=>{
-    const hub=e.concern_hub||'Unknown';
-    if(!hubStats[hub]) hubStats[hub]={total:0,solved:0,totalResponse:0,solvedCount:0,pending:0};
+function switchTab(tab) {
+  var btns = document.querySelectorAll('.tab-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  var contents = document.querySelectorAll('.tab-content');
+  for (var i = 0; i < contents.length; i++) contents[i].classList.remove('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('content-' + tab).classList.add('active');
+  if (tab === 'hubs') renderHubPerformanceTab();
+}
+
+function computeHubStats(data) {
+  var hubStats = {};
+  for (var i = 0; i < data.length; i++) {
+    var e = data[i];
+    var hub = e.concern_hub || 'Unknown';
+    if (!hubStats[hub]) hubStats[hub] = { total: 0, solved: 0, totalResponse: 0, solvedCount: 0, pending: 0 };
     hubStats[hub].total++;
-    const s=(e.issue_status||'').toLowerCase();
-    if(s==='solved'||s==='resolved'||s==='closed'){
+    var s = (e.issue_status || '').toLowerCase();
+    if (s === 'solved' || s === 'resolved' || s === 'closed') {
       hubStats[hub].solved++;
-      if(e.response_time_mins){
-        hubStats[hub].totalResponse+=e.response_time_mins;
+      if (e.response_time_mins) {
+        hubStats[hub].totalResponse += e.response_time_mins;
         hubStats[hub].solvedCount++;
       }
     } else {
       hubStats[hub].pending++;
     }
-  });
+  }
 
-  const hubs=Object.entries(hubStats).map(([name,stats])=>{
-    const solveRate=stats.total>0?Math.round((stats.solved/stats.total)*100):0;
-    const avgResponse=stats.solvedCount>0?Math.round(stats.totalResponse/stats.solvedCount):0;
-    let score=solveRate;
-    if(avgResponse>0){
-      const responseScore=avgResponse<60?30:avgResponse<120?20:avgResponse<240?10:0;
-      score=Math.round((solveRate*0.7)+(responseScore*2.33));
-      if(score>100) score=100;
+  var hubs = [];
+  for (var name in hubStats) {
+    var stats = hubStats[name];
+    var solveRate = stats.total > 0 ? Math.round((stats.solved / stats.total) * 100) : 0;
+    var avgResponse = stats.solvedCount > 0 ? Math.round(stats.totalResponse / stats.solvedCount) : 0;
+    var score = solveRate;
+    if (avgResponse > 0) {
+      var responseScore = avgResponse < 60 ? 30 : avgResponse < 120 ? 20 : avgResponse < 240 ? 10 : 0;
+      score = Math.round((solveRate * 0.7) + (responseScore * 2.33));
+      if (score > 100) score = 100;
     }
-    return{name,solveRate,avgResponse,total:stats.total,solved:stats.solved,pending:stats.pending,score};
-  }).sort((a,b)=>b.score-a.score);
-
+    hubs.push({ name: name, solveRate: solveRate, avgResponse: avgResponse, total: stats.total, solved: stats.solved, pending: stats.pending, score: score });
+  }
+  hubs.sort(function(a, b) { return b.score - a.score; });
   return hubs;
 }
 
-function renderHubAnalytics(data){
-  const hubs=computeHubStats(data);
-  const container=document.getElementById('hubAnalytics');
-  if(hubs.length===0){
-    container.innerHTML='<div class="empty" style="padding:20px"><p>No hub data available</p></div>';
+function renderHubPerformanceTab() {
+  var hubs = computeHubStats(allEscalations);
+  var tbody = document.getElementById('hubTableBody');
+  var chartDiv = document.getElementById('hubChart');
+
+  if (hubs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty" style="padding:40px">No hub data available</td></tr>';
+    chartDiv.innerHTML = '<p style="text-align:center;color:var(--text-hint)">No data</p>';
     return;
   }
 
-  container.innerHTML=hubs.slice(0,8).map(h=>{
-    let iconClass='perfect',iconText='A',scoreClass='';
-    if(h.score>=85){iconClass='perfect';iconText='A';}
-    else if(h.score>=60){iconClass='good';iconText='B';scoreClass='warning';}
-    else if(h.score>=40){iconClass='warning';iconText='C';scoreClass='warning';}
-    else{iconClass='danger';iconText='D';scoreClass='danger';}
+  var maxTotal = 0;
+  for (var i = 0; i < hubs.length; i++) if (hubs[i].total > maxTotal) maxTotal = hubs[i].total;
 
-    return '<div class="hub-card">'+
-      '<div class="hub-icon '+iconClass+'">'+iconText+'</div>'+
-      '<div class="hub-info">'+
-        '<div class="hub-name">'+escapeHtml(h.name)+'</div>'+
-        '<div class="hub-meta">'+h.solveRate+'% solved &middot; Avg '+formatDuration(h.avgResponse)+'</div>'+
-      '</div>'+
-      '<div class="hub-score '+scoreClass+'">'+h.score+'</div>'+
+  var chartHtml = '';
+  for (var i = 0; i < hubs.length; i++) {
+    var h = hubs[i];
+    var pct = maxTotal > 0 ? Math.round((h.total / maxTotal) * 100) : 0;
+    var barClass = 'perfect';
+    if (h.score >= 85) barClass = 'perfect';
+    else if (h.score >= 60) barClass = 'good';
+    else if (h.score >= 40) barClass = 'warning';
+    else barClass = 'danger';
+    chartHtml += '<div class="chart-row">' +
+      '<div class="chart-label">' + escapeHtml(h.name) + '</div>' +
+      '<div class="chart-bar-wrap"><div class="chart-bar ' + barClass + '" style="width:' + pct + '%">' + h.total + '</div></div>' +
+      '<div class="chart-value">' + h.score + 'pts</div>' +
     '</div>';
-  }).join('');
+  }
+  chartDiv.innerHTML = chartHtml;
+
+  var tableHtml = '';
+  for (var i = 0; i < hubs.length; i++) {
+    var h = hubs[i];
+    var rankClass = 'other';
+    if (i === 0) rankClass = 'gold';
+    else if (i === 1) rankClass = 'silver';
+    else if (i === 2) rankClass = 'bronze';
+
+    var progClass = 'perfect';
+    if (h.solveRate >= 85) progClass = 'perfect';
+    else if (h.solveRate >= 60) progClass = 'good';
+    else if (h.solveRate >= 40) progClass = 'warning';
+    else progClass = 'danger';
+
+    var scoreClass = '';
+    if (h.score >= 85) scoreClass = '';
+    else if (h.score >= 60) scoreClass = 'warning';
+    else if (h.score >= 40) scoreClass = 'warning';
+    else scoreClass = 'danger';
+
+    var perfBadge = '';
+    if (h.score >= 85) perfBadge = '<span class="badge badge-solved">Perfect</span>';
+    else if (h.score >= 60) perfBadge = '<span class="badge badge-inprogress">Good</span>';
+    else if (h.score >= 40) perfBadge = '<span class="badge badge-pending">Fair</span>';
+    else perfBadge = '<span class="badge badge-escalated">Poor</span>';
+
+    tableHtml += '<tr>' +
+      '<td><span class="rank-badge ' + rankClass + '">' + (i + 1) + '</span></td>' +
+      '<td><strong>' + escapeHtml(h.name) + '</strong></td>' +
+      '<td>' + h.total + '</td>' +
+      '<td>' + h.solved + '</td>' +
+      '<td><div class="progress-bar"><div class="progress-fill ' + progClass + '" style="width:' + h.solveRate + '%"></div></div> ' + h.solveRate + '%</td>' +
+      '<td>' + formatDuration(h.avgResponse) + '</td>' +
+      '<td>' + perfBadge + '</td>' +
+      '<td><strong class="hub-score ' + scoreClass + '">' + h.score + '</strong></td>' +
+    '</tr>';
+  }
+  tbody.innerHTML = tableHtml;
 }
 
-function renderHubPerformanceTab(){
-  const hubs=computeHubStats(allEscalations);
-  const tbody=document.getElementById('hubTableBody');
-  const chartDiv=document.getElementById('hubChart');
+function loadEscalations() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('escalationsTable').style.display = 'none';
+  fetch('/api/escalations')
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (!data.success) throw new Error(data.error);
+      allEscalations = data.data || [];
+      applyFilters();
+    })
+    .catch(function(e) {
+      document.getElementById('loading').textContent = 'Error: ' + e.message;
+    });
+}
 
-  if(hubs.length===0){
-    tbody.innerHTML='<tr><td colspan="8" class="empty" style="padding:40px">No hub data available</td></tr>';
-    chartDiv.innerHTML='<p style="text-align:center;color:var(--text-hint)">No data</p>';
+function applyFilters() {
+  var statusFilter = document.getElementById('filterStatus').value;
+  var hubFilter = document.getElementById('filterHub').value;
+  var catFilter = document.getElementById('filterCategory').value;
+  var searchFilter = document.getElementById('filterSearch').value.toLowerCase();
+
+  var filtered = [];
+  for (var i = 0; i < allEscalations.length; i++) {
+    var e = allEscalations[i];
+    if (statusFilter && e.issue_status !== statusFilter) continue;
+    if (hubFilter && e.concern_hub !== hubFilter) continue;
+    if (catFilter && e.issue_category !== catFilter) continue;
+    if (searchFilter) {
+      var searchStr = (e.ref_id + ' ' + e.merchant_id + ' ' + (e.kam_name || '') + ' ' + e.issue_category).toLowerCase();
+      if (searchStr.indexOf(searchFilter) < 0) continue;
+    }
+    filtered.push(e);
+  }
+
+  var total = allEscalations.length;
+  var pending = 0, solved = 0;
+  var solvedItems = [];
+  for (var i = 0; i < allEscalations.length; i++) {
+    var s = (allEscalations[i].issue_status || '').toLowerCase();
+    if (s === 'pending') pending++;
+    if (s === 'solved' || s === 'resolved' || s === 'closed') solved++;
+    if (s === 'solved' || s === 'resolved' || s === 'closed') solvedItems.push(allEscalations[i]);
+  }
+
+  var avgTime = '-';
+  if (solvedItems.length > 0) {
+    var totalMins = 0;
+    for (var i = 0; i < solvedItems.length; i++) {
+      totalMins += (solvedItems[i].response_time_mins || getResponseTime(solvedItems[i].created_at).diffMins);
+    }
+    var avgMins = Math.round(totalMins / solvedItems.length);
+    avgTime = formatDuration(avgMins);
+  }
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statPending').textContent = pending;
+  document.getElementById('statSolved').textContent = solved;
+  document.getElementById('statAvgTime').textContent = avgTime;
+  document.getElementById('loading').style.display = 'none';
+
+  if (filtered.length === 0) {
+    document.getElementById('empty').style.display = 'block';
+    document.getElementById('escalationsTable').style.display = 'none';
     return;
   }
 
-  // Render chart
-  const maxTotal=Math.max(...hubs.map(h=>h.total));
-  chartDiv.innerHTML=hubs.map((h,i)=>{
-    const pct=maxTotal>0?Math.round((h.total/maxTotal)*100):0;
-    let barClass='perfect';
-    if(h.score>=85) barClass='perfect';
-    else if(h.score>=60) barClass='good';
-    else if(h.score>=40) barClass='warning';
-    else barClass='danger';
-    return '<div class="chart-row">'+
-      '<div class="chart-label">'+escapeHtml(h.name)+'</div>'+
-      '<div class="chart-bar-wrap"><div class="chart-bar '+barClass+'" style="width:'+pct+'%">'+h.total+'</div></div>'+
-      '<div class="chart-value">'+h.score+'pts</div>'+
-    '</div>';
-  }).join('');
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('escalationsTable').style.display = 'table';
+  var tbody = document.getElementById('tableBody');
 
-  // Render table
-  tbody.innerHTML=hubs.map((h,i)=>{
-    let rankClass='other';
-    if(i===0) rankClass='gold';
-    else if(i===1) rankClass='silver';
-    else if(i===2) rankClass='bronze';
+  var html = '';
+  for (var i = 0; i < filtered.length; i++) {
+    var e = filtered[i];
+    var rt = getResponseTime(e.created_at);
+    var s = (e.issue_status || '').toLowerCase();
+    var isSolved = s.indexOf('solved') >= 0 || s.indexOf('resolved') >= 0 || s.indexOf('closed') >= 0;
 
-    let progClass='perfect';
-    if(h.solveRate>=85) progClass='perfect';
-    else if(h.solveRate>=60) progClass='good';
-    else if(h.solveRate>=40) progClass='warning';
-    else progClass='danger';
+    var detailsHtml = '';
+    detailsHtml += '<div class="detail-item"><div class="detail-label">Channel</div><div class="detail-value">' + escapeHtml(e.channel || 'N/A') + '</div></div>';
+    detailsHtml += '<div class="detail-item"><div class="detail-label">Zone</div><div class="detail-value">' + escapeHtml(e.zone || 'N/A') + '</div></div>';
+    detailsHtml += '<div class="detail-item"><div class="detail-label">Sub Category</div><div class="detail-value">' + escapeHtml(e.issue_sub_category) + '</div></div>';
+    detailsHtml += '<div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">' + escapeHtml(e.issue_status || 'Pending') + '</div></div>';
+    detailsHtml += '<div class="detail-item details"><div class="detail-label">Issue Details</div><div class="detail-value details">' + escapeHtml(e.issue_details) + '</div></div>';
+    if (e.ops_remarks) {
+      detailsHtml += '<div class="detail-item details"><div class="detail-label">OPS Remarks</div><div class="detail-value details" style="color:var(--primary)">' + escapeHtml(e.ops_remarks) + '</div></div>';
+    }
+    if (e.resolution_type) {
+      detailsHtml += '<div class="detail-item"><div class="detail-label">Resolution Type</div><div class="detail-value" style="color:var(--success)">' + escapeHtml(e.resolution_type) + '</div></div>';
+    }
+    if (e.solved_at) {
+      detailsHtml += '<div class="detail-item"><div class="detail-label">Solved At</div><div class="detail-value">' + formatDate(e.solved_at) + '</div></div>';
+    }
+    if (e.response_time_mins) {
+      detailsHtml += '<div class="detail-item"><div class="detail-label">Response Time</div><div class="detail-value">' + Math.floor(e.response_time_mins / 60) + 'h ' + (e.response_time_mins % 60) + 'm</div></div>';
+    }
 
-    let scoreClass='';
-    if(h.score>=85) scoreClass='';
-    else if(h.score>=60) scoreClass='warning';
-    else if(h.score>=40) scoreClass='warning';
-    else scoreClass='danger';
+    var actionsHtml = '';
+    if (!isSolved) {
+      actionsHtml += '<button class="btn-sm btn-solve" onclick=\\'openSolve("' + jsString(e.ref_id) + '")\\'>Solve</button>';
+    }
+    actionsHtml += '<button class="btn-sm btn-remark" onclick=\\'openRemark("' + jsString(e.ref_id) + '")\\'>Remark</button>';
+    actionsHtml += '<button class="toggle-details" onclick=\\'toggleDetails("' + jsString(e.ref_id) + '")\\'>Details</button>';
 
-    return '<tr>'+
-      '<td><span class="rank-badge '+rankClass+'">'+(i+1)+'</span></td>'+
-      '<td><strong>'+escapeHtml(h.name)+'</strong></td>'+
-      '<td>'+h.total+'</td>'+
-      '<td>'+h.solved+'</td>'+
-      '<td><div class="progress-bar"><div class="progress-fill '+progClass+'" style="width:'+h.solveRate+'%"></div></div> '+h.solveRate+'%</td>'+
-      '<td>'+formatDuration(h.avgResponse)+'</td>'+
-      '<td>'+(h.score>=85?'<span class="badge badge-solved">Perfect</span>':h.score>=60?'<span class="badge badge-inprogress">Good</span>':h.score>=40?'<span class="badge badge-pending">Fair</span>':'<span class="badge badge-escalated">Poor</span>')+'</td>'+
-      '<td><strong class="hub-score '+scoreClass+'">'+h.score+'</strong></td>'+
+    html += '<tr data-ref="' + escapeHtml(e.ref_id) + '">' +
+      '<td><strong>' + escapeHtml(e.ref_id) + '</strong></td>' +
+      '<td>' + escapeHtml(e.merchant_id) + '</td>' +
+      '<td>' + escapeHtml(e.kam_name || '-') + '</td>' +
+      '<td>' + escapeHtml(e.concern_hub) + '</td>' +
+      '<td><span style="font-size:11px;background:#f1f5f9;padding:3px 10px;border-radius:20px">' + escapeHtml(e.issue_category) + '</span></td>' +
+      '<td>' + getStatusBadge(e.issue_status) + '</td>' +
+      '<td><span class="response-time ' + rt.cls + '">' + rt.text + '</span></td>' +
+      '<td style="font-size:12px;color:var(--text-hint)">' + formatDate(e.created_at) + '</td>' +
+      '<td><div class="action-btns">' + actionsHtml + '</div></td>' +
+    '</tr>' +
+    '<tr class="details-row" id="details-' + escapeHtml(e.ref_id) + '">' +
+      '<td colspan="9"><div class="details-cell"><div class="details-grid">' + detailsHtml + '</div></div></td>' +
     '</tr>';
-  }).join('');
-}
-
-async function loadEscalations(){
-  document.getElementById('loading').style.display='block';
-  document.getElementById('empty').style.display='none';
-  document.getElementById('escalationsTable').style.display='none';
-  try{
-    const res=await fetch('/api/escalations');
-    const data=await res.json();
-    if(!data.success) throw new Error(data.error);
-    allEscalations=data.data||[];
-    renderHubAnalytics(allEscalations);
-    applyFilters();
-  }catch(e){
-    document.getElementById('loading').textContent='Error: '+e.message;
-    document.getElementById('hubAnalytics').innerHTML='<div class="empty" style="padding:20px"><p>Failed to load analytics</p></div>';
   }
+  tbody.innerHTML = html;
 }
 
-function applyFilters(){
-  const statusFilter=document.getElementById('filterStatus').value,
-    hubFilter=document.getElementById('filterHub').value,
-    catFilter=document.getElementById('filterCategory').value,
-    searchFilter=document.getElementById('filterSearch').value.toLowerCase();
-
-  let filtered=allEscalations.filter(e=>{
-    if(statusFilter&&e.issue_status!==statusFilter) return false;
-    if(hubFilter&&e.concern_hub!==hubFilter) return false;
-    if(catFilter&&e.issue_category!==catFilter) return false;
-    if(searchFilter){
-      const searchStr=(e.ref_id+' '+e.merchant_id+' '+(e.kam_name||'')+' '+e.issue_category).toLowerCase();
-      if(!searchStr.includes(searchFilter)) return false;
-    }
-    return true;
-  });
-
-  const total=allEscalations.length,
-    pending=allEscalations.filter(e=>(e.issue_status||'Pending').toLowerCase()==='pending').length,
-    solved=allEscalations.filter(e=>{const s=(e.issue_status||'').toLowerCase();return s==='solved'||s==='resolved'||s==='closed'}).length;
-  const solvedItems=allEscalations.filter(e=>{const s=(e.issue_status||'').toLowerCase();return s==='solved'||s==='resolved'||s==='closed'});
-
-  let avgTime='-';
-  if(solvedItems.length>0){
-    const totalMins=solvedItems.reduce((sum,e)=>sum+(e.response_time_mins||getResponseTime(e.created_at).diffMins),0);
-    const avgMins=Math.round(totalMins/solvedItems.length);
-    avgTime=formatDuration(avgMins);
-  }
-
-  document.getElementById('statTotal').textContent=total;
-  document.getElementById('statPending').textContent=pending;
-  document.getElementById('statSolved').textContent=solved;
-  document.getElementById('statAvgTime').textContent=avgTime;
-  document.getElementById('loading').style.display='none';
-
-  if(filtered.length===0){
-    document.getElementById('empty').style.display='block';
-    document.getElementById('escalationsTable').style.display='none';
-    return;
-  }
-
-  document.getElementById('empty').style.display='none';
-  document.getElementById('escalationsTable').style.display='table';
-  const tbody=document.getElementById('tableBody');
-
-  tbody.innerHTML=filtered.map(e=>{
-    const rt=getResponseTime(e.created_at);
-    const isSolved=(e.issue_status||'').toLowerCase().indexOf('solved')>=0||(e.issue_status||'').toLowerCase().indexOf('resolved')>=0||(e.issue_status||'').toLowerCase().indexOf('closed')>=0;
-
-    let detailsHtml='';
-    detailsHtml+='<div class="detail-item"><div class="detail-label">Channel</div><div class="detail-value">'+escapeHtml(e.channel||'N/A')+'</div></div>';
-    detailsHtml+='<div class="detail-item"><div class="detail-label">Zone</div><div class="detail-value">'+escapeHtml(e.zone||'N/A')+'</div></div>';
-    detailsHtml+='<div class="detail-item"><div class="detail-label">Sub Category</div><div class="detail-value">'+escapeHtml(e.issue_sub_category)+'</div></div>';
-    detailsHtml+='<div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">'+escapeHtml(e.issue_status||'Pending')+'</div></div>';
-    detailsHtml+='<div class="detail-item details"><div class="detail-label">Issue Details</div><div class="detail-value details">'+escapeHtml(e.issue_details)+'</div></div>';
-    if(e.ops_remarks){
-      detailsHtml+='<div class="detail-item details"><div class="detail-label">OPS Remarks</div><div class="detail-value details" style="color:var(--primary)">'+escapeHtml(e.ops_remarks)+'</div></div>';
-    }
-    if(e.resolution_type){
-      detailsHtml+='<div class="detail-item"><div class="detail-label">Resolution Type</div><div class="detail-value" style="color:var(--success)">'+escapeHtml(e.resolution_type)+'</div></div>';
-    }
-    if(e.solved_at){
-      detailsHtml+='<div class="detail-item"><div class="detail-label">Solved At</div><div class="detail-value">'+formatDate(e.solved_at)+'</div></div>';
-    }
-    if(e.response_time_mins){
-      detailsHtml+='<div class="detail-item"><div class="detail-label">Response Time</div><div class="detail-value">'+Math.floor(e.response_time_mins/60)+'h '+(e.response_time_mins%60)+'m</div></div>';
-    }
-
-    let actionsHtml='';
-    if(!isSolved){
-      actionsHtml+='<button class="btn-sm btn-solve" onclick="openSolve('+JSON.stringify(e.ref_id)+')">Solve</button>';
-    }
-    actionsHtml+='<button class="btn-sm btn-remark" onclick="openRemark('+JSON.stringify(e.ref_id)+')">Remark</button>';
-    actionsHtml+='<button class="toggle-details" onclick="toggleDetails('+JSON.stringify(e.ref_id)+')">Details</button>';
-
-    return '<tr data-ref="'+escapeHtml(e.ref_id)+'">'+
-      '<td><strong>'+escapeHtml(e.ref_id)+'</strong></td>'+
-      '<td>'+escapeHtml(e.merchant_id)+'</td>'+
-      '<td>'+escapeHtml(e.kam_name||'-')+'</td>'+
-      '<td>'+escapeHtml(e.concern_hub)+'</td>'+
-      '<td><span style="font-size:11px;background:#f1f5f9;padding:3px 10px;border-radius:20px">'+escapeHtml(e.issue_category)+'</span></td>'+
-      '<td>'+getStatusBadge(e.issue_status)+'</td>'+
-      '<td><span class="response-time '+rt.cls+'">'+rt.text+'</span></td>'+
-      '<td style="font-size:12px;color:var(--text-hint)">'+formatDate(e.created_at)+'</td>'+
-      '<td><div class="action-btns">'+actionsHtml+'</div></td>'+
-    '</tr>'+
-    '<tr class="details-row" id="details-'+escapeHtml(e.ref_id)+'">'+
-      '<td colspan="9"><div class="details-cell"><div class="details-grid">'+detailsHtml+'</div></div></td>'+
-    '</tr>';
-  }).join('');
+function toggleDetails(refId) {
+  var el = document.getElementById('details-' + refId);
+  if (el) el.classList.toggle('active');
 }
 
-function toggleDetails(refId){
-  document.getElementById('details-'+refId).classList.toggle('active')
+function openSolve(refId) {
+  currentRefId = refId;
+  document.getElementById('solveRefId').value = refId;
+  document.getElementById('solveRemarks').value = '';
+  document.getElementById('solveResolutionType').value = '';
+  document.getElementById('solveModal').classList.add('active');
 }
 
-function openSolve(refId){
-  currentRefId=refId;
-  document.getElementById('solveRefId').value=refId;
-  document.getElementById('solveRemarks').value='';
-  document.getElementById('solveResolutionType').value='';
-  document.getElementById('solveModal').classList.add('active')
+function openRemark(refId) {
+  currentRefId = refId;
+  document.getElementById('remarkRefId').value = refId;
+  document.getElementById('remarkText').value = '';
+  document.getElementById('remarkStatus').value = '';
+  document.getElementById('remarkModal').classList.add('active');
 }
 
-function openRemark(refId){
-  currentRefId=refId;
-  document.getElementById('remarkRefId').value=refId;
-  document.getElementById('remarkText').value='';
-  document.getElementById('remarkStatus').value='';
-  document.getElementById('remarkModal').classList.add('active')
-}
-
-function closeModal(id){
+function closeModal(id) {
   document.getElementById(id).classList.remove('active');
-  currentRefId=null
+  currentRefId = null;
 }
 
-async function submitSolve(){
-  const remarks=document.getElementById('solveRemarks').value.trim();
-  if(!remarks){alert('Please enter resolution remarks');return}
-  const btn=document.querySelector('#solveModal .btn-success');
-  btn.disabled=true;btn.textContent='Saving...';
-  try{
-    const res=await fetch('/api/escalations/'+encodeURIComponent(currentRefId)+'/solve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remarks,resolutionType:document.getElementById('solveResolutionType').value})});
-    const data=await res.json();
-    if(data.success){closeModal('solveModal');loadEscalations();alert('Marked as solved!')}
-    else{throw new Error(data.error)}
-  }catch(e){alert('Error: '+e.message)}
-  finally{btn.disabled=false;btn.textContent='Mark Solved'}
+function submitSolve() {
+  var remarks = document.getElementById('solveRemarks').value.trim();
+  if (!remarks) { alert('Please enter resolution remarks'); return; }
+  var btn = document.querySelector('#solveModal .btn-success');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  fetch('/api/escalations/' + encodeURIComponent(currentRefId) + '/solve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ remarks: remarks, resolutionType: document.getElementById('solveResolutionType').value })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.success) {
+      closeModal('solveModal');
+      loadEscalations();
+      alert('Marked as solved!');
+    } else {
+      throw new Error(data.error);
+    }
+  })
+  .catch(function(e) { alert('Error: ' + e.message); })
+  .finally(function() {
+    btn.disabled = false;
+    btn.textContent = 'Mark Solved';
+  });
 }
 
-async function submitRemark(){
-  const remark=document.getElementById('remarkText').value.trim();
-  if(!remark){alert('Please enter a remark');return}
-  const btn=document.querySelector('#remarkModal .btn-primary');
-  btn.disabled=true;btn.textContent='Saving...';
-  try{
-    const res=await fetch('/api/escalations/'+encodeURIComponent(currentRefId)+'/remark',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remark,newStatus:document.getElementById('remarkStatus').value})});
-    const data=await res.json();
-    if(data.success){closeModal('remarkModal');loadEscalations();alert('Remark added!')}
-    else{throw new Error(data.error)}
-  }catch(e){alert('Error: '+e.message)}
-  finally{btn.disabled=false;btn.textContent='Add Remark'}
+function submitRemark() {
+  var remark = document.getElementById('remarkText').value.trim();
+  if (!remark) { alert('Please enter a remark'); return; }
+  var btn = document.querySelector('#remarkModal .btn-primary');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  fetch('/api/escalations/' + encodeURIComponent(currentRefId) + '/remark', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ remark: remark, newStatus: document.getElementById('remarkStatus').value })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.success) {
+      closeModal('remarkModal');
+      loadEscalations();
+      alert('Remark added!');
+    } else {
+      throw new Error(data.error);
+    }
+  })
+  .catch(function(e) { alert('Error: ' + e.message); })
+  .finally(function() {
+    btn.disabled = false;
+    btn.textContent = 'Add Remark';
+  });
 }
 
-document.querySelectorAll('.modal-overlay').forEach(overlay=>{
-  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('active')})
-})
+var overlays = document.querySelectorAll('.modal-overlay');
+for (var i = 0; i < overlays.length; i++) {
+  overlays[i].addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('active');
+  });
+}
 
-loadEscalations()
-setInterval(loadEscalations,30000)
+loadEscalations();
+setInterval(loadEscalations, 30000);
 </script>
 </body>
-</html>`;
-}
+</html>`);
+});
 
-// Start
 async function start() {
   db = initDb();
   if (db) {
@@ -684,9 +677,9 @@ async function start() {
     catch (e) { console.error("DB test failed:", e.message); }
   }
   app.listen(PORT, () => {
-    console.log(`OPS Dashboard on port ${PORT}`);
-    console.log(`   Dashboard: http://localhost:${PORT}/`);
-    console.log(`   Health:    http://localhost:${PORT}/api/health`);
+    console.log("OPS Dashboard on port " + PORT);
+    console.log("   Dashboard: http://localhost:" + PORT + "/");
+    console.log("   Health:    http://localhost:" + PORT + "/api/health");
   });
 }
 
