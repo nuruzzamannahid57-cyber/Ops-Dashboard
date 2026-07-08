@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carrybee OPS Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--primary:#6366f1;--primary-dark:#4f46e5;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--info:#3b82f6;--bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--text:#1e293b;--text-sec:#64748b;--text-hint:#94a3b8;--shadow:0 1px 3px rgba(0,0,0,.04),0 4px 20px rgba(0,0,0,.06)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:linear-gradient(135deg,#1e293b 0%,#334155 100%);color:#fff;padding:20px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.header-left{display:flex;align-items:center;gap:16px}
+.header-icon{width:44px;height:44px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:12px;display:flex;align-items:center;justify-content:center}
+.header-icon svg{width:22px;height:22px;stroke:#fff;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.header h1{font-size:20px;font-weight:800;letter-spacing:-.3px}
+.header p{font-size:12px;color:rgba(255,255,255,.6);margin-top:2px}
+.header-stats{display:flex;gap:24px}
+.stat{text-align:center}
+.stat-value{font-size:22px;font-weight:800;color:#fff}
+.stat-label{font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px}
+.tab-bar{background:var(--card);border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:4px}
+.tab-btn{padding:14px 24px;font-size:13px;font-weight:600;color:var(--text-sec);background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;transition:all .2s}
+.tab-btn:hover{color:var(--primary)}
+.tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.hub-table-wrap{padding:24px 32px}
+.hub-table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+.hub-table thead{background:linear-gradient(135deg,#f8fafc,#f1f5f9)}
+.hub-table th{padding:14px 16px;font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:.6px;text-align:left;border-bottom:2px solid var(--border)}
+.hub-table td{padding:14px 16px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border);vertical-align:middle}
+.hub-table tr:hover td{background:#f8fafc}
+.hub-table tr:last-child td{border-bottom:none}
+.progress-bar{height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;width:120px;display:inline-block;vertical-align:middle;margin-right:8px}
+.progress-fill{height:100%;border-radius:4px;transition:width .3s}
+.progress-fill.perfect{background:var(--success)}
+.progress-fill.good{background:var(--info)}
+.progress-fill.warning{background:var(--warning)}
+.progress-fill.danger{background:var(--danger)}
+.rank-badge{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:12px;font-weight:800}
+.rank-badge.gold{background:linear-gradient(135deg,#fef3c7,#fbbf24);color:#92400e}
+.rank-badge.silver{background:linear-gradient(135deg,#e2e8f0,#cbd5e1);color:#475569}
+.rank-badge.bronze{background:linear-gradient(135deg,#fed7aa,#fb923c);color:#7c2d12}
+.rank-badge.other{background:#f1f5f9;color:var(--text-sec)}
+.filters{padding:16px 32px;background:var(--card);border-bottom:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.filter-group{display:flex;align-items:center;gap:8px}
+.filter-label{font-size:12px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:.5px}
+.filter-input,.filter-select{padding:8px 14px;font-size:13px;border:1.5px solid var(--border);border-radius:8px;background:#fafbfc;color:var(--text);outline:none;font-family:inherit;min-width:140px}
+.filter-input:focus,.filter-select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.08)}
+.btn{padding:8px 18px;font-size:13px;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,.3)}
+.btn-success{background:linear-gradient(135deg,var(--success),#059669);color:#fff}
+.table-wrap{padding:24px 32px;overflow-x:auto}
+table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+thead{background:linear-gradient(135deg,#f8fafc,#f1f5f9)}
+th{padding:14px 16px;font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:.6px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap}
+td{padding:14px 16px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:#f8fafc}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.badge-pending{background:#fef3c7;color:#92400e}
+.badge-solved{background:#d1fae5;color:#065f46}
+.badge-escalated{background:#fee2e2;color:#991b1b}
+.badge-inprogress{background:#dbeafe;color:#1e40af}
+.action-btns{display:flex;gap:6px;flex-wrap:wrap}
+.btn-sm{padding:5px 12px;font-size:11px;font-weight:600;border:none;border-radius:6px;cursor:pointer;transition:all .2s}
+.btn-solve{background:linear-gradient(135deg,var(--success),#059669);color:#fff}
+.btn-solve:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(16,185,129,.3)}
+.btn-remark{background:linear-gradient(135deg,var(--info),#2563eb);color:#fff}
+.btn-remark:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(59,130,246,.3)}
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.active{display:flex}
+.modal{background:var(--card);border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalPop .3s cubic-bezier(.34,1.56,.64,1)}
+@keyframes modalPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{font-size:16px;font-weight:700}
+.modal-close{width:32px;height:32px;border:none;background:#f1f5f9;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text-sec)}
+.modal-close:hover{background:#e2e8f0}
+.modal-body{padding:20px 24px}
+.modal-field{margin-bottom:16px}
+.modal-field label{display:block;font-size:12px;font-weight:600;color:var(--text-sec);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.modal-field input,.modal-field select,.modal-field textarea{width:100%;padding:10px 14px;font-size:14px;border:1.5px solid var(--border);border-radius:8px;background:#fafbfc;outline:none;font-family:inherit}
+.modal-field input:focus,.modal-field select:focus,.modal-field textarea:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(99,102,241,.08)}
+.modal-field textarea{min-height:100px;resize:vertical}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+.btn-cancel{background:#f1f5f9;color:var(--text-sec)}
+.btn-cancel:hover{background:#e2e8f0}
+.response-time{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:#e0e7ff;color:#4338ca}
+.response-time.overdue{background:#fee2e2;color:#991b1b}
+.response-time.urgent{background:#fef3c7;color:#92400e}
+.loading{text-align:center;padding:60px;color:var(--text-hint);font-size:14px}
+.empty{text-align:center;padding:60px;color:var(--text-hint)}
+.empty-icon{width:64px;height:64px;margin:0 auto 16px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px}
+.details-row{display:none;background:#f8fafc}
+.details-row.active{display:table-row}
+.details-cell{padding:20px 24px}
+.details-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.detail-item{background:#fff;padding:12px 16px;border-radius:8px;border:1px solid var(--border)}
+.detail-label{font-size:10px;font-weight:700;color:var(--text-hint);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+.detail-value{font-size:13px;font-weight:600;color:var(--text)}
+.detail-value.details{font-size:13px;line-height:1.6;color:var(--text-sec);grid-column:1/-1}
+.toggle-details{background:none;border:none;color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px}
+.toggle-details:hover{text-decoration:underline}
+.chart-container{background:var(--card);border-radius:12px;padding:20px;box-shadow:var(--shadow);margin-bottom:20px}
+.chart-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px}
+.chart-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.chart-label{width:100px;font-size:12px;font-weight:600;color:var(--text-sec);text-align:right;flex-shrink:0}
+.chart-bar-wrap{flex:1;height:24px;background:#f1f5f9;border-radius:6px;overflow:hidden;position:relative}
+.chart-bar{height:100%;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:11px;font-weight:700;color:#fff;transition:width .5s ease}
+.chart-bar.perfect{background:var(--success)}
+.chart-bar.good{background:var(--info)}
+.chart-bar.warning{background:var(--warning)}
+.chart-bar.danger{background:var(--danger)}
+.chart-value{width:40px;font-size:12px;font-weight:700;color:var(--text);text-align:right;flex-shrink:0}
+@media(max-width:768px){.header{flex-direction:column;gap:16px;padding:16px 20px}.tab-bar{padding:0 16px;overflow-x:auto}.filters{padding:16px 20px}.table-wrap{padding:16px 20px}.hub-table-wrap{padding:16px 20px}th,td{padding:10px 12px;font-size:12px}.action-btns{flex-direction:column}.chart-label{width:70px;font-size:11px}}
+</style>
+</head>
+<body>
+<div class="header">
+<div class="header-left">
+<div class="header-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+<div><h1>OPS Response Dashboard</h1><p>Manage and respond to escalated issues</p></div>
+</div>
+<div class="header-stats">
+<div class="stat"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Total</div></div>
+<div class="stat"><div class="stat-value" id="statPending">0</div><div class="stat-label">Pending</div></div>
+<div class="stat"><div class="stat-value" id="statSolved">0</div><div class="stat-label">Solved</div></div>
+<div class="stat"><div class="stat-value" id="statAvgTime">-</div><div class="stat-label">Avg Response</div></div>
+</div>
+</div>
+
+<div class="tab-bar">
+<button class="tab-btn active" onclick="switchTab('escalations')" id="tab-escalations">Escalations</button>
+<button class="tab-btn" onclick="switchTab('hubs')" id="tab-hubs">Hub Performance</button>
+</div>
+
+<div class="tab-content active" id="content-escalations">
+<div class="filters">
+<div class="filter-group"><span class="filter-label">Status</span><select class="filter-select" id="filterStatus" onchange="applyFilters()"><option value="">All</option><option value="Pending" selected>Pending</option><option value="In Progress">In Progress</option><option value="Escalated">Escalated</option><option value="Resolved">Resolved</option><option value="Closed">Closed</option></select></div>
+<div class="filter-group"><span class="filter-label">Hub</span><select class="filter-select" id="filterHub" onchange="applyFilters()"><option value="">All Hubs</option><option>Uttara</option><option>Diabari</option><option>Khilkhet</option><option>Mohakhali</option><option>Badda</option><option>Pallabi</option><option>60 Feet</option><option>Mohammadpur</option><option>Kolabagan</option><option>Lalbagh</option><option>Kamrangirchar</option><option>Jatrabari</option><option>Khilgaon</option><option>Dhonia</option><option>Demra</option></select></div>
+<div class="filter-group"><span class="filter-label">Category</span><select class="filter-select" id="filterCategory" onchange="applyFilters()"><option value="">All</option><option>Execution Request</option><option>Forcefully Taken</option><option>Inquiry</option><option>Panel Status</option><option>Complain Why Return</option><option>Coverage/Point Delivery</option><option>Delivery Delay</option><option>Payment Issue</option><option>Pickup</option><option>Return Delay</option><option>Return Exchange</option><option>Reverse Pickup</option><option>Charge Extra/Wrong COD</option><option>Damage</option><option>No Entry/Cancelled</option><option>Unprofessionalism</option><option>Wrong Routing</option><option>Wrong Tag/Parcel Swapped</option><option>Breach of CLOSEBOX</option><option>Urgent Delivery</option></select></div>
+<div class="filter-group"><span class="filter-label">Search</span><input type="text" class="filter-input" id="filterSearch" placeholder="Ref ID, Merchant..." oninput="applyFilters()"></div>
+<button class="btn btn-primary" onclick="loadEscalations()">Refresh</button>
+</div>
+<div class="table-wrap">
+<div id="loading" class="loading">Loading escalations...</div>
+<div id="empty" class="empty" style="display:none"><div class="empty-icon">&#128235;</div><p>No escalations found</p></div>
+<table id="escalationsTable" style="display:none">
+<thead><tr><th>Ref ID</th><th>Merchant / Consignment</th><th>KAM</th><th>Hub</th><th>Category</th><th>Status</th><th>Response Time</th><th>Created</th><th>Actions</th></tr></thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+</div>
+
+<div class="tab-content" id="content-hubs">
+<div class="hub-table-wrap">
+<div class="chart-container">
+<div class="chart-title">Solve Rate by Hub</div>
+<div id="hubChart"></div>
+</div>
+<table class="hub-table" id="hubTable">
+<thead>
+<tr>
+<th>Rank</th>
+<th>Hub</th>
+<th>Total Issues</th>
+<th>Solved</th>
+<th>Solve Rate</th>
+<th>Avg Response</th>
+<th>Performance</th>
+<th>Score</th>
+</tr>
+</thead>
+<tbody id="hubTableBody"></tbody>
+</table>
+</div>
+</div>
+
+<div class="modal-overlay" id="solveModal">
+<div class="modal">
+<div class="modal-header"><h3>Mark as Solved</h3><button class="modal-close" onclick="closeModal('solveModal')">&times;</button></div>
+<div class="modal-body">
+<div class="modal-field"><label>Reference ID</label><input type="text" id="solveRefId" readonly style="background:#f1f5f9"></div>
+<div class="modal-field"><label>Resolution Remarks *</label><textarea id="solveRemarks" placeholder="Describe how the issue was resolved..."></textarea></div>
+<div class="modal-field"><label>Resolution Category</label><select id="solveResolutionType"><option value="">Select</option><option>Issue Resolved - Customer Satisfied</option><option>Issue Resolved - Merchant Satisfied</option><option>False Alarm / No Issue Found</option><option>Escalated to Higher Authority</option><option>Pending Merchant Action</option><option>Pending Customer Action</option><option>System Issue Fixed</option><option>Process Improvement Needed</option><option>Training Provided</option><option>Other</option></select></div>
+</div>
+<div class="modal-footer"><button class="btn btn-cancel" onclick="closeModal('solveModal')">Cancel</button><button class="btn btn-success" onclick="submitSolve()">Mark Solved</button></div>
+</div>
+</div>
+<div class="modal-overlay" id="remarkModal">
+<div class="modal">
+<div class="modal-header"><h3>Add Remark</h3><button class="modal-close" onclick="closeModal('remarkModal')">&times;</button></div>
+<div class="modal-body">
+<div class="modal-field"><label>Reference ID</label><input type="text" id="remarkRefId" readonly style="background:#f1f5f9"></div>
+<div class="modal-field"><label>Remark / Update *</label><textarea id="remarkText" placeholder="Add your remark or status update..."></textarea></div>
+<div class="modal-field"><label>Update Status To</label><select id="remarkStatus"><option value="">Keep Current</option><option>In Progress</option><option>Escalated</option><option>Pending Info</option></select></div>
+</div>
+<div class="modal-footer"><button class="btn btn-cancel" onclick="closeModal('remarkModal')">Cancel</button><button class="btn btn-primary" onclick="submitRemark()">Add Remark</button></div>
+</div>
+</div>
+<script>
+var allEscalations = [];
+var currentRefId = null;
+
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function jsString(str) {
+  if (str == null) return '';
+  return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+}
+
+function getResponseTime(createdAt) {
+  var created = new Date(createdAt);
+  var now = new Date();
+  var diffMs = now - created;
+  var diffMins = Math.floor(diffMs / 60000);
+  var diffHours = Math.floor(diffMins / 60);
+  var diffDays = Math.floor(diffHours / 24);
+  var text, cls = '';
+  if (diffDays > 0) { text = diffDays + 'd ' + (diffHours % 24) + 'h'; cls = 'overdue'; }
+  else if (diffHours > 0) { text = diffHours + 'h ' + (diffMins % 60) + 'm'; cls = diffHours > 4 ? 'overdue' : diffHours > 2 ? 'urgent' : ''; }
+  else { text = diffMins + 'm'; cls = diffMins > 30 ? 'urgent' : ''; }
+  return { text: text, cls: cls, diffMins: diffMins };
+}
+
+function formatDate(dateStr) {
+  var d = new Date(dateStr);
+  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDuration(mins) {
+  if (!mins || mins <= 0) return '-';
+  if (mins > 1440) return Math.round(mins / 1440) + 'd';
+  if (mins > 60) return Math.round(mins / 60) + 'h';
+  return mins + 'm';
+}
+
+function getStatusBadge(status) {
+  var s = (status || 'Pending').toLowerCase();
+  if (s.indexOf('solved') >= 0 || s.indexOf('resolved') >= 0 || s.indexOf('closed') >= 0) return '<span class="badge badge-solved">&#9679; Solved</span>';
+  if (s.indexOf('escalat') >= 0) return '<span class="badge badge-escalated">&#9679; Escalated</span>';
+  if (s.indexOf('progress') >= 0) return '<span class="badge badge-inprogress">&#9679; In Progress</span>';
+  return '<span class="badge badge-pending">&#9679; Pending</span>';
+}
+
+function switchTab(tab) {
+  var btns = document.querySelectorAll('.tab-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  var contents = document.querySelectorAll('.tab-content');
+  for (var i = 0; i < contents.length; i++) contents[i].classList.remove('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('content-' + tab).classList.add('active');
+  if (tab === 'hubs') renderHubPerformanceTab();
+}
+
+function computeHubStats(data) {
+  var hubStats = {};
+  for (var i = 0; i < data.length; i++) {
+    var e = data[i];
+    var hub = e.concern_hub || 'Unknown';
+    if (!hubStats[hub]) hubStats[hub] = { total: 0, solved: 0, totalResponse: 0, solvedCount: 0, pending: 0 };
+    hubStats[hub].total++;
+    var s = (e.issue_status || '').toLowerCase();
+    if (s === 'solved' || s === 'resolved' || s === 'closed') {
+      hubStats[hub].solved++;
+      if (e.response_time_mins) {
+        hubStats[hub].totalResponse += e.response_time_mins;
+        hubStats[hub].solvedCount++;
+      }
+    } else {
+      hubStats[hub].pending++;
+    }
+  }
+
+  var hubs = [];
+  for (var name in hubStats) {
+    var stats = hubStats[name];
+    var solveRate = stats.total > 0 ? Math.round((stats.solved / stats.total) * 100) : 0;
+    var avgResponse = stats.solvedCount > 0 ? Math.round(stats.totalResponse / stats.solvedCount) : 0;
+    var score = solveRate;
+    if (avgResponse > 0) {
+      var responseScore = avgResponse < 60 ? 30 : avgResponse < 120 ? 20 : avgResponse < 240 ? 10 : 0;
+      score = Math.round((solveRate * 0.7) + (responseScore * 2.33));
+      if (score > 100) score = 100;
+    }
+    hubs.push({ name: name, solveRate: solveRate, avgResponse: avgResponse, total: stats.total, solved: stats.solved, pending: stats.pending, score: score });
+  }
+  hubs.sort(function(a, b) { return b.score - a.score; });
+  return hubs;
+}
+
+function renderHubPerformanceTab() {
+  var hubs = computeHubStats(allEscalations);
+  var tbody = document.getElementById('hubTableBody');
+  var chartDiv = document.getElementById('hubChart');
+
+  if (hubs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty" style="padding:40px">No hub data available</td></tr>';
+    chartDiv.innerHTML = '<p style="text-align:center;color:var(--text-hint)">No data</p>';
+    return;
+  }
+
+  var maxTotal = 0;
+  for (var i = 0; i < hubs.length; i++) if (hubs[i].total > maxTotal) maxTotal = hubs[i].total;
+
+  var chartHtml = '';
+  for (var i = 0; i < hubs.length; i++) {
+    var h = hubs[i];
+    var pct = maxTotal > 0 ? Math.round((h.total / maxTotal) * 100) : 0;
+    var barClass = 'perfect';
+    if (h.score >= 85) barClass = 'perfect';
+    else if (h.score >= 60) barClass = 'good';
+    else if (h.score >= 40) barClass = 'warning';
+    else barClass = 'danger';
+    chartHtml += '<div class="chart-row">' +
+      '<div class="chart-label">' + escapeHtml(h.name) + '</div>' +
+      '<div class="chart-bar-wrap"><div class="chart-bar ' + barClass + '" style="width:' + pct + '%">' + h.total + '</div></div>' +
+      '<div class="chart-value">' + h.score + 'pts</div>' +
+    '</div>';
+  }
+  chartDiv.innerHTML = chartHtml;
+
+  var tableHtml = '';
+  for (var i = 0; i < hubs.length; i++) {
+    var h = hubs[i];
+    var rankClass = 'other';
+    if (i === 0) rankClass = 'gold';
+    else if (i === 1) rankClass = 'silver';
+    else if (i === 2) rankClass = 'bronze';
+
+    var progClass = 'perfect';
+    if (h.solveRate >= 85) progClass = 'perfect';
+    else if (h.solveRate >= 60) progClass = 'good';
+    else if (h.solveRate >= 40) progClass = 'warning';
+    else progClass = 'danger';
+
+    var scoreClass = '';
+    if (h.score >= 85) scoreClass = '';
+    else if (h.score >= 60) scoreClass = 'warning';
+    else if (h.score >= 40) scoreClass = 'warning';
+    else scoreClass = 'danger';
+
+    var perfBadge = '';
+    if (h.score >= 85) perfBadge = '<span class="badge badge-solved">Perfect</span>';
+    else if (h.score >= 60) perfBadge = '<span class="badge badge-inprogress">Good</span>';
+    else if (h.score >= 40) perfBadge = '<span class="badge badge-pending">Fair</span>';
+    else perfBadge = '<span class="badge badge-escalated">Poor</span>';
+
+    tableHtml += '<tr>' +
+      '<td><span class="rank-badge ' + rankClass + '">' + (i + 1) + '</span></td>' +
+      '<td><strong>' + escapeHtml(h.name) + '</strong></td>' +
+      '<td>' + h.total + '</td>' +
+      '<td>' + h.solved + '</td>' +
+      '<td><div class="progress-bar"><div class="progress-fill ' + progClass + '" style="width:' + h.solveRate + '%"></div></div> ' + h.solveRate + '%</td>' +
+      '<td>' + formatDuration(h.avgResponse) + '</td>' +
+      '<td>' + perfBadge + '</td>' +
+      '<td><strong class="hub-score ' + scoreClass + '">' + h.score + '</strong></td>' +
+    '</tr>';
+  }
+  tbody.innerHTML = tableHtml;
+}
+
+function loadEscalations() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('escalationsTable').style.display = 'none';
+  fetch('/api/escalations')
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (!data.success) throw new Error(data.error);
+      allEscalations = data.data || [];
+      applyFilters();
+    })
+    .catch(function(e) {
+      document.getElementById('loading').textContent = 'Error: ' + e.message;
+    });
+}
+
+function applyFilters() {
+  var statusFilter = document.getElementById('filterStatus').value;
+  var hubFilter = document.getElementById('filterHub').value;
+  var catFilter = document.getElementById('filterCategory').value;
+  var searchFilter = document.getElementById('filterSearch').value.toLowerCase();
+
+  var filtered = [];
+  for (var i = 0; i < allEscalations.length; i++) {
+    var e = allEscalations[i];
+    if (statusFilter && e.issue_status !== statusFilter) continue;
+    if (hubFilter && e.concern_hub !== hubFilter) continue;
+    if (catFilter && e.issue_category !== catFilter) continue;
+    if (searchFilter) {
+      var searchStr = (e.ref_id + ' ' + e.merchant_id + ' ' + (e.kam_name || '') + ' ' + e.issue_category).toLowerCase();
+      if (searchStr.indexOf(searchFilter) < 0) continue;
+    }
+    filtered.push(e);
+  }
+
+  var total = allEscalations.length;
+  var pending = 0, solved = 0;
+  var solvedItems = [];
+  for (var i = 0; i < allEscalations.length; i++) {
+    var s = (allEscalations[i].issue_status || '').toLowerCase();
+    if (s === 'pending') pending++;
+    if (s === 'solved' || s === 'resolved' || s === 'closed') solved++;
+    if (s === 'solved' || s === 'resolved' || s === 'closed') solvedItems.push(allEscalations[i]);
+  }
+
+  var avgTime = '-';
+  if (solvedItems.length > 0) {
+    var totalMins = 0;
+    for (var i = 0; i < solvedItems.length; i++) {
+      totalMins += (solvedItems[i].response_time_mins || getResponseTime(solvedItems[i].created_at).diffMins);
+    }
+    var avgMins = Math.round(totalMins / solvedItems.length);
+    avgTime = formatDuration(avgMins);
+  }
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statPending').textContent = pending;
+  document.getElementById('statSolved').textContent = solved;
+  document.getElementById('statAvgTime').textContent = avgTime;
+  document.getElementById('loading').style.display = 'none';
+
+  if (filtered.length === 0) {
+    document.getElementById('empty').style.display = 'block';
+    document.getElementById('escalationsTable').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('escalationsTable').style.display = 'table';
+  var tbody = document.getElementById('tableBody');
+
+  var html = '';
+  for (var i = 0; i < filtered.length; i++) {
+    var e = filtered[i];
+    var rt = getResponseTime(e.created_at);
+    var s = (e.issue_status || '').toLowerCase();
+    var isSolved = s.indexOf('solved') >= 0 || s.indexOf('resolved') >= 0 || s.indexOf('closed') >= 0;
+
+    var detailsHtml = '';
+    detailsHtml += '<div class="detail-item"><div class="detail-label">Channel</div><div class="detail-value">' + escapeHtml(e.channel || 'N/A') + '</div></div>';
+    detailsHtml += '<div class="detail-item"><div class="detail-label">Zone</div><div class="detail-value">' + escapeHtml(e.zone || 'N/A') + '</div></div>';
+    detailsHtml += '<div class="detail-item"><div class="detail-label">Sub Category</div><div class="detail-value">' + escapeHtml(e.issue_sub_category) + '</div></div>';
+    detailsHtml += '<div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">' + escapeHtml(e.issue_status || 'Pending') + '</div></div>';
+    detailsHtml += '<div class="detail-item details"><div class="detail-label">Issue Details</div><div class="detail-value details">' + escapeHtml(e.issue_details) + '</div></div>';
+    if (e.ops_remarks) {
+      detailsHtml += '<div class="detail-item details"><div class="detail-label">OPS Remarks</div><div class="detail-value details" style="color:var(--primary)">' + escapeHtml(e.ops_remarks) + '</div></div>';
+    }
+    if (e.resolution_type) {
+      detailsHtml += '<div class="detail-item"><div class="detail-label">Resolution Type</div><div class="detail-value" style="color:var(--success)">' + escapeHtml(e.resolution_type) + '</div></div>';
+    }
+    if (e.solved_at) {
+      detailsHtml += '<div class="detail-item"><div class="detail-label">Solved At</div><div class="detail-value">' + formatDate(e.solved_at) + '</div></div>';
+    }
+    if (e.response_time_mins) {
+      detailsHtml += '<div class="detail-item"><div class="detail-label">Response Time</div><div class="detail-value">' + Math.floor(e.response_time_mins / 60) + 'h ' + (e.response_time_mins % 60) + 'm</div></div>';
+    }
+
+    var actionsHtml = '';
+    if (!isSolved) {
+      actionsHtml += '<button class="btn-sm btn-solve" onclick=\\'openSolve("' + jsString(e.ref_id) + '")\\'>Solve</button>';
+    }
+    actionsHtml += '<button class="btn-sm btn-remark" onclick=\\'openRemark("' + jsString(e.ref_id) + '")\\'>Remark</button>';
+    actionsHtml += '<button class="toggle-details" onclick=\\'toggleDetails("' + jsString(e.ref_id) + '")\\'>Details</button>';
+
+    html += '<tr data-ref="' + escapeHtml(e.ref_id) + '">' +
+      '<td><strong>' + escapeHtml(e.ref_id) + '</strong></td>' +
+      '<td>' + escapeHtml(e.merchant_id) + '</td>' +
+      '<td>' + escapeHtml(e.kam_name || '-') + '</td>' +
+      '<td>' + escapeHtml(e.concern_hub) + '</td>' +
+      '<td><span style="font-size:11px;background:#f1f5f9;padding:3px 10px;border-radius:20px">' + escapeHtml(e.issue_category) + '</span></td>' +
+      '<td>' + getStatusBadge(e.issue_status) + '</td>' +
+      '<td><span class="response-time ' + rt.cls + '">' + rt.text + '</span></td>' +
+      '<td style="font-size:12px;color:var(--text-hint)">' + formatDate(e.created_at) + '</td>' +
+      '<td><div class="action-btns">' + actionsHtml + '</div></td>' +
+    '</tr>' +
+    '<tr class="details-row" id="details-' + escapeHtml(e.ref_id) + '">' +
+      '<td colspan="9"><div class="details-cell"><div class="details-grid">' + detailsHtml + '</div></div></td>' +
+    '</tr>';
+  }
+  tbody.innerHTML = html;
+}
+
+function toggleDetails(refId) {
+  var el = document.getElementById('details-' + refId);
+  if (el) el.classList.toggle('active');
+}
+
+function openSolve(refId) {
+  currentRefId = refId;
+  document.getElementById('solveRefId').value = refId;
+  document.getElementById('solveRemarks').value = '';
+  document.getElementById('solveResolutionType').value = '';
+  document.getElementById('solveModal').classList.add('active');
+}
+
+function openRemark(refId) {
+  currentRefId = refId;
+  document.getElementById('remarkRefId').value = refId;
+  document.getElementById('remarkText').value = '';
+  document.getElementById('remarkStatus').value = '';
+  document.getElementById('remarkModal').classList.add('active');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+  currentRefId = null;
+}
+
+function submitSolve() {
+  var remarks = document.getElementById('solveRemarks').value.trim();
+  if (!remarks) { alert('Please enter resolution remarks'); return; }
+  var btn = document.querySelector('#solveModal .btn-success');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  fetch('/api/escalations/' + encodeURIComponent(currentRefId) + '/solve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ remarks: remarks, resolutionType: document.getElementById('solveResolutionType').value })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.success) {
+      closeModal('solveModal');
+      loadEscalations();
+      alert('Marked as solved!');
+    } else {
+      throw new Error(data.error);
+    }
+  })
+  .catch(function(e) { alert('Error: ' + e.message); })
+  .finally(function() {
+    btn.disabled = false;
+    btn.textContent = 'Mark Solved';
+  });
+}
+
+function submitRemark() {
+  var remark = document.getElementById('remarkText').value.trim();
+  if (!remark) { alert('Please enter a remark'); return; }
+  var btn = document.querySelector('#remarkModal .btn-primary');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  fetch('/api/escalations/' + encodeURIComponent(currentRefId) + '/remark', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ remark: remark, newStatus: document.getElementById('remarkStatus').value })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.success) {
+      closeModal('remarkModal');
+      loadEscalations();
+      alert('Remark added!');
+    } else {
+      throw new Error(data.error);
+    }
+  })
+  .catch(function(e) { alert('Error: ' + e.message); })
+  .finally(function() {
+    btn.disabled = false;
+    btn.textContent = 'Add Remark';
+  });
+}
+
+var overlays = document.querySelectorAll('.modal-overlay');
+for (var i = 0; i < overlays.length; i++) {
+  overlays[i].addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('active');
+  });
+}
+
+loadEscalations();
+setInterval(loadEscalations, 30000);
+</script>
+</body>
+</html>
