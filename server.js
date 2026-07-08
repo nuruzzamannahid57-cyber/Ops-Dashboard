@@ -61,7 +61,10 @@ const MIGRATIONS = [
   { col: "resolution_type", sql: "ALTER TABLE escalations ADD COLUMN resolution_type TEXT" },
   { col: "response_time_mins", sql: "ALTER TABLE escalations ADD COLUMN response_time_mins INTEGER" },
   { col: "solved_at", sql: "ALTER TABLE escalations ADD COLUMN solved_at DATETIME" },
-  { col: "updated_at", sql: "ALTER TABLE escalations ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP" }
+  // NOTE: no DEFAULT CURRENT_TIMESTAMP here — Turso/libSQL can silently fail to
+  // add a column with a non-constant default. Every write already sets this
+  // column explicitly (see the /solve and /remark routes), so no default is needed.
+  { col: "updated_at", sql: "ALTER TABLE escalations ADD COLUMN updated_at DATETIME" }
 ];
 
 // Runs the migration set and returns a summary instead of silently swallowing errors.
