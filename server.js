@@ -20,12 +20,26 @@ app.use((req, res, next) => {
 });
 
 let db;
+let lastMigrationResult = null;
 
 function initDb() {
   const url = process.env.TURSO_DATABASE_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
   if (!url || !authToken) { console.error("Missing env vars"); return null; }
   try { return createClient({ url, authToken }); } catch (e) { console.error("DB init failed:", e.message); return null; }
+}
+
+async function tableExists(tableName) {
+  try {
+    const result = await db.execute({
+      sql: "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+      args: [tableName]
+    });
+    return result.rows.length > 0;
+  } catch (e) {
+    console.error("Failed to check table existence:", e.message);
+    return false;
+  }
 }
 
 async function getTableColumns(tableName) {
@@ -42,35 +56,81 @@ async function getTableColumns(tableName) {
   }
 }
 
+const MIGRATIONS = [
+  { col: "ops_remarks", sql: "ALTER TABLE escalations ADD COLUMN ops_remarks TEXT" },
+  { col: "resolution_type", sql: "ALTER TABLE escalations ADD COLUMN resolution_type TEXT" },
+  { col: "response_time_mins", sql: "ALTER TABLE escalations ADD COLUMN response_time_mins INTEGER" },
+  { col: "solved_at", sql: "ALTER TABLE escalations ADD COLUMN solved_at DATETIME" },
+  { col: "updated_at", sql: "ALTER TABLE escalations ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP" }
+];
+
+// Runs the migration set and returns a summary instead of silently swallowing errors.
 async function runMigrations() {
-  if (!db) return;
+  if (!db) return { ok: false, reason: "DB not initialized" };
   console.log("Running database migrations...");
+
+  const exists = await tableExists("escalations");
+  if (!exists) {
+    const msg = "Table 'escalations' does not exist yet — skipping column migrations.";
+    console.error(msg);
+    return { ok: false, reason: msg };
+  }
 
   const columns = await getTableColumns("escalations");
   console.log("Existing columns:", Array.from(columns).join(", "));
 
-  const migrations = [
-    { col: "ops_remarks", sql: "ALTER TABLE escalations ADD COLUMN ops_remarks TEXT" },
-    { col: "resolution_type", sql: "ALTER TABLE escalations ADD COLUMN resolution_type TEXT" },
-    { col: "response_time_mins", sql: "ALTER TABLE escalations ADD COLUMN response_time_mins INTEGER" },
-    { col: "solved_at", sql: "ALTER TABLE escalations ADD COLUMN solved_at DATETIME" },
-    { col: "updated_at", sql: "ALTER TABLE escalations ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP" }
-  ];
+  const added = [];
+  const failed = [];
+  const skipped = [];
 
-  for (const mig of migrations) {
+  for (const mig of MIGRATIONS) {
     if (columns.has(mig.col)) {
-      console.log("  Column already exists:", mig.col);
+      skipped.push(mig.col);
       continue;
     }
     try {
       await db.execute(mig.sql);
+      added.push(mig.col);
       console.log("  Added column:", mig.col);
     } catch (e) {
-      console.error("  Failed to add column", mig.col + ":", e.message);
+      // Turso/libSQL can throw "duplicate column" if two instances race on boot — treat as success.
+      if (/duplicate column/i.test(e.message)) {
+        skipped.push(mig.col);
+        console.log("  Column already exists (race-safe):", mig.col);
+      } else {
+        failed.push({ col: mig.col, error: e.message });
+        console.error("  FAILED to add column", mig.col + ":", e.message);
+      }
     }
   }
-  console.log("Migrations complete.");
+
+  // Verify by re-reading the schema instead of trusting the ALTER calls blindly.
+  const finalColumns = await getTableColumns("escalations");
+  const stillMissing = MIGRATIONS.map(m => m.col).filter(c => !finalColumns.has(c));
+
+  const summary = { ok: stillMissing.length === 0, added, skipped, failed, stillMissing };
+  console.log("Migrations complete:", JSON.stringify(summary));
+  return summary;
 }
+
+app.get("/api/debug/columns", async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ success: false, error: "DB not connected" });
+    const exists = await tableExists("escalations");
+    const columns = exists ? Array.from(await getTableColumns("escalations")) : [];
+    const missing = MIGRATIONS.map(m => m.col).filter(c => !columns.includes(c));
+    res.json({ success: true, tableExists: exists, columns, missing, lastMigrationResult });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Manually re-run migrations on demand, e.g. after fixing a table-not-found issue.
+app.post("/api/debug/migrate", async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ success: false, error: "DB not connected" });
+    lastMigrationResult = await runMigrations();
+    res.json({ success: lastMigrationResult.ok, result: lastMigrationResult });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
 
 app.get("/api/health", async (req, res) => {
   try {
@@ -136,10 +196,22 @@ app.get("/", (req, res) => {
 async function start() {
   db = initDb();
   if (db) {
-    try { 
-      await db.execute("SELECT 1"); 
+    try {
+      await db.execute("SELECT 1");
       console.log("DB connected");
-      await runMigrations();
+      lastMigrationResult = await runMigrations();
+
+      // If the table didn't exist yet on the first pass (e.g. cold-start race),
+      // give it one retry after a short delay instead of failing silently forever.
+      if (!lastMigrationResult.ok && lastMigrationResult.reason?.includes("does not exist")) {
+        console.log("Retrying migrations in 3s...");
+        await new Promise(r => setTimeout(r, 3000));
+        lastMigrationResult = await runMigrations();
+      }
+
+      if (!lastMigrationResult.ok) {
+        console.error("Migrations did not fully succeed:", JSON.stringify(lastMigrationResult));
+      }
     }
     catch (e) { console.error("DB test failed:", e.message); }
   }
