@@ -85,7 +85,6 @@ app.post("/api/escalations/:refId/remark", async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// Serve dashboard from separate HTML file
 app.get("/", (req, res) => {
   res.sendFile(join(__dirname, "index.html"));
 });
