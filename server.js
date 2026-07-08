@@ -28,6 +28,33 @@ function initDb() {
   try { return createClient({ url, authToken }); } catch (e) { console.error("DB init failed:", e.message); return null; }
 }
 
+async function runMigrations() {
+  if (!db) return;
+  console.log("Running database migrations...");
+
+  const migrations = [
+    "ALTER TABLE escalations ADD COLUMN ops_remarks TEXT",
+    "ALTER TABLE escalations ADD COLUMN resolution_type TEXT",
+    "ALTER TABLE escalations ADD COLUMN response_time_mins INTEGER",
+    "ALTER TABLE escalations ADD COLUMN solved_at DATETIME",
+    "ALTER TABLE escalations ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"
+  ];
+
+  for (const sql of migrations) {
+    try {
+      await db.execute(sql);
+      console.log("  Applied:", sql);
+    } catch (e) {
+      if (e.message && e.message.includes("duplicate column")) {
+        console.log("  Already exists, skipping:", sql.split("ADD COLUMN")[1].trim().split(" ")[0]);
+      } else {
+        console.error("  Migration failed:", e.message);
+      }
+    }
+  }
+  console.log("Migrations complete.");
+}
+
 app.get("/api/health", async (req, res) => {
   try {
     if (!db) return res.json({ status: "error", message: "DB not initialized" });
@@ -92,7 +119,11 @@ app.get("/", (req, res) => {
 async function start() {
   db = initDb();
   if (db) {
-    try { await db.execute("SELECT 1"); console.log("DB connected"); }
+    try { 
+      await db.execute("SELECT 1"); 
+      console.log("DB connected");
+      await runMigrations();
+    }
     catch (e) { console.error("DB test failed:", e.message); }
   }
   app.listen(PORT, () => {
