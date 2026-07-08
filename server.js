@@ -65,7 +65,7 @@ app.post("/api/escalations/:refId/solve", async (req, res) => {
     const responseTimeMins = Math.floor((solvedAt - createdAt) / 60000);
 
     await db.execute({
-      sql: `UPDATE escalations SET issue_status = 'Solved', ops_remarks = ?, resolution_type = ?, response_time_mins = ?, solved_at = ?, updated_at = CURRENT_TIMESTAMP WHERE ref_id = ?`,
+      sql: "UPDATE escalations SET issue_status = 'Solved', ops_remarks = ?, resolution_type = ?, response_time_mins = ?, solved_at = ?, updated_at = CURRENT_TIMESTAMP WHERE ref_id = ?",
       args: [remarks, resolutionType || null, responseTimeMins, solvedAt.toISOString(), req.params.refId]
     });
 
@@ -80,10 +80,10 @@ app.post("/api/escalations/:refId/remark", async (req, res) => {
     const { remark, newStatus } = req.body;
     if (!remark) return res.status(400).json({ success: false, error: "Remark required" });
 
-    let sql = `UPDATE escalations SET ops_remarks = ?, updated_at = CURRENT_TIMESTAMP`;
+    let sql = "UPDATE escalations SET ops_remarks = ?, updated_at = CURRENT_TIMESTAMP";
     const args = [remark];
-    if (newStatus) { sql += `, issue_status = ?`; args.push(newStatus); }
-    sql += ` WHERE ref_id = ?`; args.push(req.params.refId);
+    if (newStatus) { sql += ", issue_status = ?"; args.push(newStatus); }
+    sql += " WHERE ref_id = ?"; args.push(req.params.refId);
 
     await db.execute({ sql, args });
     res.json({ success: true, message: "Remark added" });
@@ -92,7 +92,12 @@ app.post("/api/escalations/:refId/remark", async (req, res) => {
 
 // Serve dashboard
 app.get("/", (req, res) => {
-  res.send(`<!DOCTYPE html>
+  const html = buildDashboardHtml();
+  res.send(html);
+});
+
+function buildDashboardHtml() {
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -114,14 +119,22 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .stat-value{font-size:22px;font-weight:800;color:#fff}
 .stat-label{font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px}
 
-/* Hub Analytics Bar */
-.analytics-bar{background:var(--card);border-bottom:1px solid var(--border);padding:16px 32px}
+/* Tabs */
+.tab-bar{background:var(--card);border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:4px}
+.tab-btn{padding:14px 24px;font-size:13px;font-weight:600;color:var(--text-sec);background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;transition:all .2s}
+.tab-btn:hover{color:var(--primary)}
+.tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* Hub Analytics */
+.analytics-bar{background:var(--card);border-bottom:1px solid var(--border);padding:20px 32px}
 .analytics-bar h2{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .analytics-bar h2::before{content:"";display:inline-block;width:8px;height:8px;background:var(--success);border-radius:50%}
-.hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
-.hub-card{background:linear-gradient(135deg,#f8fafc,#fff);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;transition:all .2s}
+.hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.hub-card{background:linear-gradient(135deg,#f8fafc,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;transition:all .2s}
 .hub-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.06);border-color:var(--primary)}
-.hub-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0}
+.hub-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex-shrink:0}
 .hub-icon.perfect{background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#065f46}
 .hub-icon.good{background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e40af}
 .hub-icon.warning{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e}
@@ -129,9 +142,29 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .hub-info{flex:1;min-width:0}
 .hub-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hub-meta{font-size:11px;color:var(--text-sec);margin-top:2px}
-.hub-score{font-size:16px;font-weight:800;color:var(--success)}
+.hub-score{font-size:18px;font-weight:800;color:var(--success)}
 .hub-score.warning{color:var(--warning)}
 .hub-score.danger{color:var(--danger)}
+
+/* Hub Performance Tab */
+.hub-table-wrap{padding:24px 32px}
+.hub-table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+.hub-table thead{background:linear-gradient(135deg,#f8fafc,#f1f5f9)}
+.hub-table th{padding:14px 16px;font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:.6px;text-align:left;border-bottom:2px solid var(--border)}
+.hub-table td{padding:14px 16px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border);vertical-align:middle}
+.hub-table tr:hover td{background:#f8fafc}
+.hub-table tr:last-child td{border-bottom:none}
+.progress-bar{height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;width:120px}
+.progress-fill{height:100%;border-radius:4px;transition:width .3s}
+.progress-fill.perfect{background:var(--success)}
+.progress-fill.good{background:var(--info)}
+.progress-fill.warning{background:var(--warning)}
+.progress-fill.danger{background:var(--danger)}
+.rank-badge{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:12px;font-weight:800}
+.rank-badge.gold{background:linear-gradient(135deg,#fef3c7,#fbbf24);color:#92400e}
+.rank-badge.silver{background:linear-gradient(135deg,#e2e8f0,#cbd5e1);color:#475569}
+.rank-badge.bronze{background:linear-gradient(135deg,#fed7aa,#fb923c);color:#7c2d12}
+.rank-badge.other{background:#f1f5f9;color:var(--text-sec)}
 
 .filters{padding:16px 32px;background:var(--card);border-bottom:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 .filter-group{display:flex;align-items:center;gap:8px}
@@ -193,7 +226,18 @@ tr:last-child td{border-bottom:none}
 .detail-value.details{font-size:13px;line-height:1.6;color:var(--text-sec);grid-column:1/-1}
 .toggle-details{background:none;border:none;color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px}
 .toggle-details:hover{text-decoration:underline}
-@media(max-width:768px){.header{flex-direction:column;gap:16px;padding:16px 20px}.analytics-bar{padding:16px 20px}.filters{padding:16px 20px}.table-wrap{padding:16px 20px}th,td{padding:10px 12px;font-size:12px}.action-btns{flex-direction:column}.hub-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
+.chart-container{background:var(--card);border-radius:12px;padding:20px;box-shadow:var(--shadow);margin-bottom:20px}
+.chart-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px}
+.chart-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.chart-label{width:100px;font-size:12px;font-weight:600;color:var(--text-sec);text-align:right;flex-shrink:0}
+.chart-bar-wrap{flex:1;height:24px;background:#f1f5f9;border-radius:6px;overflow:hidden;position:relative}
+.chart-bar{height:100%;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:11px;font-weight:700;color:#fff;transition:width .5s ease}
+.chart-bar.perfect{background:var(--success)}
+.chart-bar.good{background:var(--info)}
+.chart-bar.warning{background:var(--warning)}
+.chart-bar.danger{background:var(--danger)}
+.chart-value{width:40px;font-size:12px;font-weight:700;color:var(--text);text-align:right;flex-shrink:0}
+@media(max-width:768px){.header{flex-direction:column;gap:16px;padding:16px 20px}.tab-bar{padding:0 16px;overflow-x:auto}.analytics-bar{padding:16px 20px}.filters{padding:16px 20px}.table-wrap{padding:16px 20px}.hub-table-wrap{padding:16px 20px}th,td{padding:10px 12px;font-size:12px}.action-btns{flex-direction:column}.hub-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.chart-label{width:70px;font-size:11px}}
 </style>
 </head>
 <body>
@@ -210,32 +254,68 @@ tr:last-child td{border-bottom:none}
 </div>
 </div>
 
+<!-- Tab Navigation -->
+<div class="tab-bar">
+<button class="tab-btn active" onclick="switchTab('escalations')" id="tab-escalations">Escalations</button>
+<button class="tab-btn" onclick="switchTab('hubs')" id="tab-hubs">Hub Performance</button>
+</div>
+
+<!-- Escalations Tab -->
+<div class="tab-content active" id="content-escalations">
+
 <!-- Hub Analytics Bar -->
 <div class="analytics-bar">
-<h2>Hub Performance Analytics</h2>
+<h2>Hub Performance Snapshot</h2>
 <div class="hub-grid" id="hubAnalytics">
 <div class="loading" style="padding:20px">Loading hub analytics...</div>
 </div>
 </div>
 
 <div class="filters">
-<div class="filter-group"><span class="filter-label">Status</span><select class="filter-select" id="filterStatus" onchange="loadEscalations()"><option value="">All</option><option value="Pending" selected>Pending</option><option value="In Progress">In Progress</option><option value="Escalated">Escalated</option><option value="Resolved">Resolved</option><option value="Closed">Closed</option></select></div>
-<div class="filter-group"><span class="filter-label">Hub</span><select class="filter-select" id="filterHub" onchange="loadEscalations()"><option value="">All Hubs</option><option>Uttara</option><option>Diabari</option><option>Khilkhet</option><option>Mohakhali</option><option>Badda</option><option>Pallabi</option><option>60 Feet</option><option>Mohammadpur</option><option>Kolabagan</option><option>Lalbagh</option><option>Kamrangirchar</option><option>Jatrabari</option><option>Khilgaon</option><option>Dhonia</option><option>Demra</option></select></div>
-<div class="filter-group"><span class="filter-label">Category</span><select class="filter-select" id="filterCategory" onchange="loadEscalations()"><option value="">All</option><option>Execution Request</option><option>Forcefully Taken</option><option>Inquiry</option><option>Panel Status</option><option>Complain Why Return</option><option>Coverage/Point Delivery</option><option>Delivery Delay</option><option>Payment Issue</option><option>Pickup</option><option>Return Delay</option><option>Return Exchange</option><option>Reverse Pickup</option><option>Charge Extra/Wrong COD</option><option>Damage</option><option>No Entry/Cancelled</option><option>Unprofessionalism</option><option>Wrong Routing</option><option>Wrong Tag/Parcel Swapped</option><option>Breach of CLOSEBOX</option><option>Urgent Delivery</option></select></div>
-<div class="filter-group"><span class="filter-label">Search</span><input type="text" class="filter-input" id="filterSearch" placeholder="Ref ID, Merchant..." oninput="loadEscalations()"></div>
+<div class="filter-group"><span class="filter-label">Status</span><select class="filter-select" id="filterStatus" onchange="applyFilters()"><option value="">All</option><option value="Pending" selected>Pending</option><option value="In Progress">In Progress</option><option value="Escalated">Escalated</option><option value="Resolved">Resolved</option><option value="Closed">Closed</option></select></div>
+<div class="filter-group"><span class="filter-label">Hub</span><select class="filter-select" id="filterHub" onchange="applyFilters()"><option value="">All Hubs</option><option>Uttara</option><option>Diabari</option><option>Khilkhet</option><option>Mohakhali</option><option>Badda</option><option>Pallabi</option><option>60 Feet</option><option>Mohammadpur</option><option>Kolabagan</option><option>Lalbagh</option><option>Kamrangirchar</option><option>Jatrabari</option><option>Khilgaon</option><option>Dhonia</option><option>Demra</option></select></div>
+<div class="filter-group"><span class="filter-label">Category</span><select class="filter-select" id="filterCategory" onchange="applyFilters()"><option value="">All</option><option>Execution Request</option><option>Forcefully Taken</option><option>Inquiry</option><option>Panel Status</option><option>Complain Why Return</option><option>Coverage/Point Delivery</option><option>Delivery Delay</option><option>Payment Issue</option><option>Pickup</option><option>Return Delay</option><option>Return Exchange</option><option>Reverse Pickup</option><option>Charge Extra/Wrong COD</option><option>Damage</option><option>No Entry/Cancelled</option><option>Unprofessionalism</option><option>Wrong Routing</option><option>Wrong Tag/Parcel Swapped</option><option>Breach of CLOSEBOX</option><option>Urgent Delivery</option></select></div>
+<div class="filter-group"><span class="filter-label">Search</span><input type="text" class="filter-input" id="filterSearch" placeholder="Ref ID, Merchant..." oninput="applyFilters()"></div>
 <button class="btn btn-primary" onclick="loadEscalations()">Refresh</button>
 </div>
 <div class="table-wrap">
 <div id="loading" class="loading">Loading escalations...</div>
-<div id="empty" class="empty" style="display:none"><div class="empty-icon">📭</div><p>No escalations found</p></div>
+<div id="empty" class="empty" style="display:none"><div class="empty-icon">&#128235;</div><p>No escalations found</p></div>
 <table id="escalationsTable" style="display:none">
 <thead><tr><th>Ref ID</th><th>Merchant / Consignment</th><th>KAM</th><th>Hub</th><th>Category</th><th>Status</th><th>Response Time</th><th>Created</th><th>Actions</th></tr></thead>
 <tbody id="tableBody"></tbody>
 </table>
 </div>
+</div>
+
+<!-- Hub Performance Tab -->
+<div class="tab-content" id="content-hubs">
+<div class="hub-table-wrap">
+<div class="chart-container">
+<div class="chart-title">Solve Rate by Hub</div>
+<div id="hubChart"></div>
+</div>
+<table class="hub-table" id="hubTable">
+<thead>
+<tr>
+<th>Rank</th>
+<th>Hub</th>
+<th>Total Issues</th>
+<th>Solved</th>
+<th>Solve Rate</th>
+<th>Avg Response</th>
+<th>Performance</th>
+<th>Score</th>
+</tr>
+</thead>
+<tbody id="hubTableBody"></tbody>
+</table>
+</div>
+</div>
+
 <div class="modal-overlay" id="solveModal">
 <div class="modal">
-<div class="modal-header"><h3>Mark as Solved</h3><button class="modal-close" onclick="closeModal('solveModal')">×</button></div>
+<div class="modal-header"><h3>Mark as Solved</h3><button class="modal-close" onclick="closeModal('solveModal')">&times;</button></div>
 <div class="modal-body">
 <div class="modal-field"><label>Reference ID</label><input type="text" id="solveRefId" readonly style="background:#f1f5f9"></div>
 <div class="modal-field"><label>Resolution Remarks *</label><textarea id="solveRemarks" placeholder="Describe how the issue was resolved..."></textarea></div>
@@ -246,7 +326,7 @@ tr:last-child td{border-bottom:none}
 </div>
 <div class="modal-overlay" id="remarkModal">
 <div class="modal">
-<div class="modal-header"><h3>Add Remark</h3><button class="modal-close" onclick="closeModal('remarkModal')">×</button></div>
+<div class="modal-header"><h3>Add Remark</h3><button class="modal-close" onclick="closeModal('remarkModal')">&times;</button></div>
 <div class="modal-body">
 <div class="modal-field"><label>Reference ID</label><input type="text" id="remarkRefId" readonly style="background:#f1f5f9"></div>
 <div class="modal-field"><label>Remark / Update *</label><textarea id="remarkText" placeholder="Add your remark or status update..."></textarea></div>
@@ -282,19 +362,34 @@ function formatDate(dateStr){
   return d.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
 }
 
-function getStatusBadge(status){
-  const s=(status||'Pending').toLowerCase();
-  if(s.includes('solved')||s.includes('resolved')||s.includes('closed'))return'<span class="badge badge-solved">● Solved</span>';
-  if(s.includes('escalat'))return'<span class="badge badge-escalated">● Escalated</span>';
-  if(s.includes('progress'))return'<span class="badge badge-inprogress">● In Progress</span>';
-  return'<span class="badge badge-pending">● Pending</span>'
+function formatDuration(mins){
+  if(!mins||mins<=0) return '-';
+  if(mins>1440) return Math.round(mins/1440)+'d';
+  if(mins>60) return Math.round(mins/60)+'h';
+  return mins+'m';
 }
 
-function renderHubAnalytics(data){
+function getStatusBadge(status){
+  const s=(status||'Pending').toLowerCase();
+  if(s.indexOf('solved')>=0||s.indexOf('resolved')>=0||s.indexOf('closed')>=0)return'<span class="badge badge-solved">&#9679; Solved</span>';
+  if(s.indexOf('escalat')>=0)return'<span class="badge badge-escalated">&#9679; Escalated</span>';
+  if(s.indexOf('progress')>=0)return'<span class="badge badge-inprogress">&#9679; In Progress</span>';
+  return'<span class="badge badge-pending">&#9679; Pending</span>'
+}
+
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('content-'+tab).classList.add('active');
+  if(tab==='hubs') renderHubPerformanceTab();
+}
+
+function computeHubStats(data){
   const hubStats={};
   data.forEach(e=>{
     const hub=e.concern_hub||'Unknown';
-    if(!hubStats[hub]) hubStats[hub]={total:0,solved:0,totalResponse:0,solvedCount:0};
+    if(!hubStats[hub]) hubStats[hub]={total:0,solved:0,totalResponse:0,solvedCount:0,pending:0};
     hubStats[hub].total++;
     const s=(e.issue_status||'').toLowerCase();
     if(s==='solved'||s==='resolved'||s==='closed'){
@@ -303,6 +398,8 @@ function renderHubAnalytics(data){
         hubStats[hub].totalResponse+=e.response_time_mins;
         hubStats[hub].solvedCount++;
       }
+    } else {
+      hubStats[hub].pending++;
     }
   });
 
@@ -313,38 +410,96 @@ function renderHubAnalytics(data){
     if(avgResponse>0){
       const responseScore=avgResponse<60?30:avgResponse<120?20:avgResponse<240?10:0;
       score=Math.round((solveRate*0.7)+(responseScore*2.33));
+      if(score>100) score=100;
     }
-    return{name,solveRate,avgResponse,total:stats.total,score};
+    return{name,solveRate,avgResponse,total:stats.total,solved:stats.solved,pending:stats.pending,score};
   }).sort((a,b)=>b.score-a.score);
 
+  return hubs;
+}
+
+function renderHubAnalytics(data){
+  const hubs=computeHubStats(data);
   const container=document.getElementById('hubAnalytics');
   if(hubs.length===0){
     container.innerHTML='<div class="empty" style="padding:20px"><p>No hub data available</p></div>';
     return;
   }
 
-  container.innerHTML=hubs.map(h=>{
+  container.innerHTML=hubs.slice(0,8).map(h=>{
     let iconClass='perfect',iconText='A',scoreClass='';
-    if(h.score>=85){iconClass='perfect';iconText='A';scoreClass=''}
-    else if(h.score>=60){iconClass='good';iconText='B';scoreClass='warning'}
-    else if(h.score>=40){iconClass='warning';iconText='C';scoreClass='warning'}
-    else{iconClass='danger';iconText='D';scoreClass='danger'}
-
-    let avgText='-';
-    if(h.avgResponse>0){
-      if(h.avgResponse>1440) avgText=Math.round(h.avgResponse/1440)+'d';
-      else if(h.avgResponse>60) avgText=Math.round(h.avgResponse/60)+'h';
-      else avgText=h.avgResponse+'m';
-    }
+    if(h.score>=85){iconClass='perfect';iconText='A';}
+    else if(h.score>=60){iconClass='good';iconText='B';scoreClass='warning';}
+    else if(h.score>=40){iconClass='warning';iconText='C';scoreClass='warning';}
+    else{iconClass='danger';iconText='D';scoreClass='danger';}
 
     return '<div class="hub-card">'+
       '<div class="hub-icon '+iconClass+'">'+iconText+'</div>'+
       '<div class="hub-info">'+
         '<div class="hub-name">'+escapeHtml(h.name)+'</div>'+
-        '<div class="hub-meta">'+h.solveRate+'% solved · Avg '+avgText+'</div>'+
+        '<div class="hub-meta">'+h.solveRate+'% solved &middot; Avg '+formatDuration(h.avgResponse)+'</div>'+
       '</div>'+
       '<div class="hub-score '+scoreClass+'">'+h.score+'</div>'+
     '</div>';
+  }).join('');
+}
+
+function renderHubPerformanceTab(){
+  const hubs=computeHubStats(allEscalations);
+  const tbody=document.getElementById('hubTableBody');
+  const chartDiv=document.getElementById('hubChart');
+
+  if(hubs.length===0){
+    tbody.innerHTML='<tr><td colspan="8" class="empty" style="padding:40px">No hub data available</td></tr>';
+    chartDiv.innerHTML='<p style="text-align:center;color:var(--text-hint)">No data</p>';
+    return;
+  }
+
+  // Render chart
+  const maxTotal=Math.max(...hubs.map(h=>h.total));
+  chartDiv.innerHTML=hubs.map((h,i)=>{
+    const pct=maxTotal>0?Math.round((h.total/maxTotal)*100):0;
+    let barClass='perfect';
+    if(h.score>=85) barClass='perfect';
+    else if(h.score>=60) barClass='good';
+    else if(h.score>=40) barClass='warning';
+    else barClass='danger';
+    return '<div class="chart-row">'+
+      '<div class="chart-label">'+escapeHtml(h.name)+'</div>'+
+      '<div class="chart-bar-wrap"><div class="chart-bar '+barClass+'" style="width:'+pct+'%">'+h.total+'</div></div>'+
+      '<div class="chart-value">'+h.score+'pts</div>'+
+    '</div>';
+  }).join('');
+
+  // Render table
+  tbody.innerHTML=hubs.map((h,i)=>{
+    let rankClass='other';
+    if(i===0) rankClass='gold';
+    else if(i===1) rankClass='silver';
+    else if(i===2) rankClass='bronze';
+
+    let progClass='perfect';
+    if(h.solveRate>=85) progClass='perfect';
+    else if(h.solveRate>=60) progClass='good';
+    else if(h.solveRate>=40) progClass='warning';
+    else progClass='danger';
+
+    let scoreClass='';
+    if(h.score>=85) scoreClass='';
+    else if(h.score>=60) scoreClass='warning';
+    else if(h.score>=40) scoreClass='warning';
+    else scoreClass='danger';
+
+    return '<tr>'+
+      '<td><span class="rank-badge '+rankClass+'">'+(i+1)+'</span></td>'+
+      '<td><strong>'+escapeHtml(h.name)+'</strong></td>'+
+      '<td>'+h.total+'</td>'+
+      '<td>'+h.solved+'</td>'+
+      '<td><div class="progress-bar"><div class="progress-fill '+progClass+'" style="width:'+h.solveRate+'%"></div></div> '+h.solveRate+'%</td>'+
+      '<td>'+formatDuration(h.avgResponse)+'</td>'+
+      '<td>'+(h.score>=85?'<span class="badge badge-solved">Perfect</span>':h.score>=60?'<span class="badge badge-inprogress">Good</span>':h.score>=40?'<span class="badge badge-pending">Fair</span>':'<span class="badge badge-escalated">Poor</span>')+'</td>'+
+      '<td><strong class="hub-score '+scoreClass+'">'+h.score+'</strong></td>'+
+    '</tr>';
   }).join('');
 }
 
@@ -391,9 +546,7 @@ function applyFilters(){
   if(solvedItems.length>0){
     const totalMins=solvedItems.reduce((sum,e)=>sum+(e.response_time_mins||getResponseTime(e.created_at).diffMins),0);
     const avgMins=Math.round(totalMins/solvedItems.length);
-    if(avgMins>1440) avgTime=Math.round(avgMins/1440)+'d';
-    else if(avgMins>60) avgTime=Math.round(avgMins/60)+'h';
-    else avgTime=avgMins+'m';
+    avgTime=formatDuration(avgMins);
   }
 
   document.getElementById('statTotal').textContent=total;
@@ -414,7 +567,7 @@ function applyFilters(){
 
   tbody.innerHTML=filtered.map(e=>{
     const rt=getResponseTime(e.created_at);
-    const isSolved=(e.issue_status||'').toLowerCase().includes('solved')||(e.issue_status||'').toLowerCase().includes('resolved')||(e.issue_status||'').toLowerCase().includes('closed');
+    const isSolved=(e.issue_status||'').toLowerCase().indexOf('solved')>=0||(e.issue_status||'').toLowerCase().indexOf('resolved')>=0||(e.issue_status||'').toLowerCase().indexOf('closed')>=0;
 
     let detailsHtml='';
     detailsHtml+='<div class="detail-item"><div class="detail-label">Channel</div><div class="detail-value">'+escapeHtml(e.channel||'N/A')+'</div></div>';
@@ -520,18 +673,18 @@ loadEscalations()
 setInterval(loadEscalations,30000)
 </script>
 </body>
-</html>`);
-});
+</html>`;
+}
 
 // Start
 async function start() {
   db = initDb();
   if (db) {
-    try { await db.execute("SELECT 1"); console.log("✅ DB connected"); }
-    catch (e) { console.error("❌ DB test failed:", e.message); }
+    try { await db.execute("SELECT 1"); console.log("DB connected"); }
+    catch (e) { console.error("DB test failed:", e.message); }
   }
   app.listen(PORT, () => {
-    console.log(`🚀 OPS Dashboard on port ${PORT}`);
+    console.log(`OPS Dashboard on port ${PORT}`);
     console.log(`   Dashboard: http://localhost:${PORT}/`);
     console.log(`   Health:    http://localhost:${PORT}/api/health`);
   });
