@@ -28,28 +28,45 @@ function initDb() {
   try { return createClient({ url, authToken }); } catch (e) { console.error("DB init failed:", e.message); return null; }
 }
 
+async function getTableColumns(tableName) {
+  try {
+    const result = await db.execute("SELECT name FROM pragma_table_info('" + tableName + "')");
+    const columns = new Set();
+    for (const row of result.rows) {
+      columns.add(row.name);
+    }
+    return columns;
+  } catch (e) {
+    console.error("Failed to get columns:", e.message);
+    return new Set();
+  }
+}
+
 async function runMigrations() {
   if (!db) return;
   console.log("Running database migrations...");
 
+  const columns = await getTableColumns("escalations");
+  console.log("Existing columns:", Array.from(columns).join(", "));
+
   const migrations = [
-    "ALTER TABLE escalations ADD COLUMN ops_remarks TEXT",
-    "ALTER TABLE escalations ADD COLUMN resolution_type TEXT",
-    "ALTER TABLE escalations ADD COLUMN response_time_mins INTEGER",
-    "ALTER TABLE escalations ADD COLUMN solved_at DATETIME",
-    "ALTER TABLE escalations ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"
+    { col: "ops_remarks", sql: "ALTER TABLE escalations ADD COLUMN ops_remarks TEXT" },
+    { col: "resolution_type", sql: "ALTER TABLE escalations ADD COLUMN resolution_type TEXT" },
+    { col: "response_time_mins", sql: "ALTER TABLE escalations ADD COLUMN response_time_mins INTEGER" },
+    { col: "solved_at", sql: "ALTER TABLE escalations ADD COLUMN solved_at DATETIME" },
+    { col: "updated_at", sql: "ALTER TABLE escalations ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP" }
   ];
 
-  for (const sql of migrations) {
+  for (const mig of migrations) {
+    if (columns.has(mig.col)) {
+      console.log("  Column already exists:", mig.col);
+      continue;
+    }
     try {
-      await db.execute(sql);
-      console.log("  Applied:", sql);
+      await db.execute(mig.sql);
+      console.log("  Added column:", mig.col);
     } catch (e) {
-      if (e.message && e.message.includes("duplicate column")) {
-        console.log("  Already exists, skipping:", sql.split("ADD COLUMN")[1].trim().split(" ")[0]);
-      } else {
-        console.error("  Migration failed:", e.message);
-      }
+      console.error("  Failed to add column", mig.col + ":", e.message);
     }
   }
   console.log("Migrations complete.");
