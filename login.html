@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — OPS Response Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{--carrybee-dark:#2d2d2d;--carrybee-yellow:#ffc107}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f9fa;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:#fff;padding:44px 48px;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 20px rgba(0,0,0,.08);text-align:center;max-width:360px;width:100%}
+.logo{width:56px;height:56px;background:var(--carrybee-yellow);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;overflow:hidden}
+.logo img{width:100%;height:100%;object-fit:contain;padding:6px}
+h1{font-size:19px;font-weight:800;color:var(--carrybee-dark);margin-bottom:4px;letter-spacing:-.3px}
+p{font-size:13px;color:#64748b;margin-bottom:28px}
+#g_id_signin_wrap{display:flex;justify-content:center}
+#error{color:#ef4444;font-size:13px;margin-top:18px;display:none;background:#fef2f2;padding:10px 14px;border-radius:8px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo"><img src="/logo.png" alt="Carrybee" onerror="this.style.display='none'"></div>
+  <h1>OPS Response Dashboard</h1>
+  <p>Sign in with your @carrybee.com account</p>
+  <div id="g_id_signin_wrap"></div>
+  <div id="error">Access restricted to @carrybee.com accounts.</div>
+</div>
+
+<script>
+  const GOOGLE_CLIENT_ID = '806093436112-ohsnghq01ncrb8uha0rn5c3a3k0b190n.apps.googleusercontent.com';
+
+  window.onload = function () {
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleCredentialResponse,
+      hd: 'carrybee.com' // UX hint only, not the actual security check
+    });
+    google.accounts.id.renderButton(
+      document.getElementById('g_id_signin_wrap'),
+      { theme: 'outline', size: 'large', width: 260 }
+    );
+  };
+
+  async function handleCredentialResponse(response) {
+    const errorEl = document.getElementById('error');
+    errorEl.style.display = 'none';
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ credential: response.credential })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'Login failed';
+        errorEl.style.display = 'block';
+        return;
+      }
+      window.location.href = '/';
+    } catch (e) {
+      errorEl.textContent = 'Something went wrong. Try again.';
+      errorEl.style.display = 'block';
+    }
+  }
+</script>
+</body>
+</html>
